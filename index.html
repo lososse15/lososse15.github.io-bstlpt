@@ -26,5 +26,241 @@
         radial-gradient(900px 400px at 10% 10%, rgba(96,165,250,0.25), transparent 60%),
         radial-gradient(700px 400px at 90% 20%, rgba(52,211,153,0.18), transparent 55%),
         radial-gradient(700px 500px at 40% 90%, rgba(96,165,250,0.12), transparent 60%),
+        var(--bg);
+      line-height: 1.6;
+    }
 
-      
+    .wrap{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 18px 60px;
+    }
+
+    /* Top nav */
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      background: rgba(0,0,0,0.20);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+    }
+
+    .brand{
+      font-weight: 800;
+      letter-spacing: 0.3px;
+    }
+
+    .nav{
+      display:flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .nav a{
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+    }
+
+    .nav a:hover{
+      border-color: var(--line);
+      background: rgba(255,255,255,0.06);
+    }
+
+    /* Hero */
+    .hero{
+      margin-top: 18px;
+      padding: 28px 22px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 18px;
+      backdrop-filter: blur(10px);
+    }
+
+    .hero h1{
+      margin: 0 0 6px 0;
+      font-size: 44px;
+      letter-spacing: -0.6px;
+    }
+
+    .subtitle{
+      margin: 0 0 14px 0;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .hero p{
+      margin: 0 0 18px 0;
+      color: var(--muted);
+      max-width: 780px;
+    }
+
+    .cta{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn{
+      display:inline-block;
+      text-decoration:none;
+      font-weight: 800;
+      font-size: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      color: var(--text);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .btn:hover{
+      background: rgba(255,255,255,0.10);
+    }
+
+    .btn.primary{
+      border-color: rgba(96,165,250,0.45);
+      background: rgba(96,165,250,0.18);
+    }
+
+    .btn.primary:hover{
+      background: rgba(96,165,250,0.25);
+    }
+
+    /* Cards */
+    .grid{
+      margin-top: 18px;
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+
+    .card{
+      grid-column: span 12;
+      padding: 18px 18px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 18px;
+      backdrop-filter: blur(10px);
+    }
+
+    .card h2{
+      margin: 0 0 10px 0;
+      font-size: 18px;
+      letter-spacing: -0.2px;
+    }
+
+    .card p{
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .quicklinks{
+      margin-top: 12px;
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pill{
+      text-decoration:none;
+      color: var(--text);
+      font-weight: 800;
+      font-size: 13px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .pill:hover{
+      background: rgba(255,255,255,0.10);
+    }
+
+    .hint{
+      margin-top: 10px;
+      font-size: 13px;
+      color: rgba(232,238,252,0.65);
+    }
+
+    footer{
+      margin-top: 22px;
+      text-align:center;
+      color: rgba(232,238,252,0.55);
+      font-size: 13px;
+    }
+
+    /* Responsive tweaks */
+    @media (min-width: 860px){
+      .card.half{ grid-column: span 6; }
+      .hero h1{ font-size: 54px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <div class="topbar">
+      <div class="brand">Seth Losos</div>
+      <div class="nav">
+        <a href="index.html">Home</a>
+        <a href="about.html">About</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </div>
+
+    <section class="hero">
+      <h1>Seth Losos</h1>
+      <p class="subtitle">Physical Therapist | DPT | ATC</p>
+
+      <p>
+        Welcome to my personal website. This site is hosted for free on GitHub Pages.
+      </p>
+
+      <div class="cta">
+        <a class="btn primary" href="about.html">Read My Bio</a>
+        <a class="btn" href="services.html">View Services</a>
+        <a class="btn" href="contact.html">Contact</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card half">
+        <h2>Quick Links</h2>
+        <div class="quicklinks">
+          <a class="pill" href="mailto:youremail@email.com">Email</a>
+          <a class="pill" href="https://linkedin.com" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a class="pill" href="https://github.com/yourusername" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+        <div class="hint">Tip: update the email + links above with your real info.</div>
+      </div>
+
+      <div class="card half">
+        <h2>Focus</h2>
+        <p>
+          Injury prevention, return-to-activity, and helping people better understand their bodies to achieve greater independence in movement and daily activities.
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      © <span id="year"></span> Seth Losos
+    </footer>
+
+  </div>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
