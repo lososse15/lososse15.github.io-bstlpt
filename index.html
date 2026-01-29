@@ -5,208 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Seth Losos</title>
   <style>
-    :root {
-      --text: #111827;
-      --muted: #6b7280;
-      --line: #e5e7eb;
-      --bg: #ffffff;
-      --card: #f9fafb;
-      --link: #2563eb;
+    :root{
+      --bg: #0b1220;
+      --surface: rgba(255,255,255,0.06);
+      --surface2: rgba(255,255,255,0.10);
+      --text: #e8eefc;
+      --muted: rgba(232,238,252,0.75);
+      --line: rgba(255,255,255,0.12);
+      --accent: #60a5fa;   /* light blue */
+      --accent2: #34d399;  /* green */
     }
 
-    * { box-sizing: border-box; }
+    *{ box-sizing: border-box; }
 
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
+    body{
+      margin:0;
       font-family: Arial, sans-serif;
-      line-height: 1.6;
-    }
+      color: var(--text);
+      background:
+        radial-gradient(900px 400px at 10% 10%, rgba(96,165,250,0.25), transparent 60%),
+        radial-gradient(700px 400px at 90% 20%, rgba(52,211,153,0.18), transparent 55%),
+        radial-gradient(700px 500px at 40% 90%, rgba(96,165,250,0.12), transparent 60%),
 
-    .wrap {
-      max-width: 840px;
-      margin: 0 auto;
-      padding: 64px 20px;
-    }
-
-    header {
-      text-align: center;
-      padding: 28px 22px;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: var(--card);
-    }
-
-    h1 {
-      margin: 0 0 6px 0;
-      font-size: 44px;
-      letter-spacing: -0.5px;
-    }
-
-    .subtitle {
-      margin: 0;
-      color: var(--muted);
-      font-size: 16px;
-    }
-
-    nav {
-      margin-top: 16px;
-      display: flex;
-      gap: 14px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    nav a {
-      text-decoration: none;
-      color: var(--link);
-      padding: 8px 12px;
-      border-radius: 10px;
-      border: 1px solid var(--line);
-      background: #fff;
-      font-weight: 600;
-      font-size: 14px;
-    }
-
-    nav a:hover {
-      border-color: #c7d2fe;
-      background: #eef2ff;
-    }
-
-    .section {
-      margin-top: 28px;
-      padding: 24px 22px;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: #fff;
-      text-align: left;
-    }
-
-    .section h2 {
-      margin: 0 0 10px 0;
-      font-size: 20px;
-      letter-spacing: -0.2px;
-    }
-
-    .section p {
-      margin: 0 0 12px 0;
-      color: #1f2937;
-    }
-
-    .section p:last-child {
-      margin-bottom: 0;
-    }
-
-    .links {
-      display: flex;
-      gap: 14px;
-      flex-wrap: wrap;
-      margin-top: 10px;
-    }
-
-    .links a {
-      color: var(--link);
-      text-decoration: none;
-      font-weight: 700;
-    }
-
-    .links a:hover {
-      text-decoration: underline;
-    }
-
-    ul.clean {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    ul.clean li {
-      padding: 10px 0;
-      border-top: 1px solid var(--line);
-    }
-
-    ul.clean li:first-child {
-      border-top: none;
-      padding-top: 0;
-    }
-
-    footer {
-      margin-top: 22px;
-      text-align: center;
-      color: var(--muted);
-      font-size: 13px;
-    }
-  </style>
-</head>
-
-<body>
-  <main class="wrap">
-
-    <header>
-      <h1>Seth Losos</h1>
-      <p class="subtitle">Physical Therapist | DPT | ATC</p>
-
-      <nav>
-        <a href="#about">About</a>
-        <a href="#services">Services</a>
-        <a href="#contact">Contact</a>
-      </nav>
-    </header>
-
-    <section class="section" aria-label="Welcome">
-      <h2>Welcome</h2>
-      <p>
-        Welcome to my personal website. This is hosted for free on GitHub Pages.
-      </p>
-      <div class="links">
-        <a href="mailto:youremail@email.com">Email</a>
-        <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-        <a href="https://github.com/yourusername" target="_blank" rel="noopener noreferrer">GitHub</a>
-      </div>
-    </section>
-
-    <section id="about" class="section" aria-label="About Me">
-      <h2>About Me</h2>
-      <p>
-        Seth Losos is a Doctor of Physical Therapy who earned his doctorate in 2022 and his Bachelor’s degree in Athletic Training in 2020 from the <strong>University of Mary</strong>. Following completion of his undergraduate degree, Seth worked as an athletic trainer, providing care for a wide range of athletes from the elementary to collegiate levels.
-      </p>
-      <p>
-        During his Doctor of Physical Therapy program, Seth gained clinical experience across multiple settings, including neurological, vestibular, and orthopedic rehabilitation. Since graduating, he has worked in outpatient orthopedic, skilled nursing, and hospital-based settings, where he has developed a strong passion for helping individuals prevent injuries and recover safely and effectively.
-      </p>
-      <p>
-        Seth’s primary professional interest is helping people get the most out of their bodies so they can continue participating in the activities they love. He is especially passionate about injury prevention, return-to-activity, and optimizing movement for long-term health and performance.
-      </p>
-      <p>
-        Seth moved to the Flathead Valley from North Dakota for the warmer weather and outdoor activities. He enjoys the outdoor lifestyle, staying active through hiking, canoeing, biking, rollerblading, basketball, and Spikeball. His own background in sports and physical activity played a major role in shaping his passion for helping others better understand their bodies and achieve greater independence in movement and daily activities.
-      </p>
-    </section>
-
-    <section id="services" class="section" aria-label="Services">
-      <h2>Services</h2>
-      <ul class="clean">
-        <li>Injury Rehab</li>
-        <li>Return to Sport</li>
-        <li>Strength &amp; Conditioning</li>
-      </ul>
-    </section>
-
-    <section id="contact" class="section" aria-label="Contact">
-      <h2>Contact</h2>
-      <p>
-        Email is the easiest way to reach me:
-        <a href="mailto:youremail@email.com">youremail@email.com</a>
-      </p>
-    </section>
-
-    <footer>
-      © <span id="year"></span> Seth Losos
-    </footer>
-
-  </main>
-
-  <script>
-    document.getElementById("year").textContent = new Date().getFullYear();
-  </script>
-</body>
-</html>
+      
