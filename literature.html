@@ -1,1 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Literature Lane - BSTL</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+
+    <div class="nav">
+      <div class="brand">BSTL</div>
+      <div class="navlinks">
+        <a href="index.html">Home</a>
+        <a href="team.html">Team</a>
+        <a href="literature.html">Literature Lane</a>
+      </div>
+    </div>
+
+    <div class="hero">
+      <h1>Literature Lane</h1>
+      <div class="subtitle">Recent research relevant to Physical Therapy</div>
+      <p>
+        A curated selection of recent publications that may inform rehabilitation decisions, patient education, and
+        evidence-based programming. (Links go to the journal or PubMed record.)
+      </p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Meniscus/Osteoarthritis & Physical Therapy</h2>
+        <ul class="list">
+          <li>
+            <strong>NEJM (2025):</strong> Randomized trial examining physical therapy and exercise approaches for adults with knee OA and meniscal tear.
+            <a href="https://www.nejm.org/doi/abs/10.1056/NEJMoa2503385" target="_blank" rel="noopener noreferrer">Read</a>
+          </li>
+          <li>
+            <strong>Osteoarthritis Year in Review (2025):</strong> Rehabilitation and outcomes synthesis for OA care.
+            <a href="https://www.sciencedirect.com/science/article/pii/S1063458425011914" target="_blank" rel="noopener noreferrer">Read</a>
+          </li>
+        </ul>
+        <div class="small">Sources: NEJM trial and OA rehabilitation year-in-review. :contentReference[oaicite:1]{index=1}</div>
+      </div>
+
+      <div class="card">
+        <h2>Vestibular Rehabilitation</h2>
+        <ul class="list">
+          <li>
+            <strong>JAMA Network Open (2025):</strong> Emergency department vestibular rehabilitation therapy trial (feasibility and symptom outcomes).
+            <a href="https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2830236" target="_blank" rel="noopener noreferrer">Read</a>
+          </li>
+          <li>
+            <strong>PubMed (2025):</strong> Dose/intensity of targeted vestibular rehab exercises after mTBI—effects on dizziness and related outcomes.
+            <a href="https://pubmed.ncbi.nlm.nih.gov/41576285/" target="_blank" rel="noopener noreferrer">Read</a>
+          </li>
+        </ul>
+        <div class="small">Sources: JAMA Network Open + PubMed trial record. :contentReference[oaicite:2]{index=2}</div>
+      </div>
+
+      <div class="card">
+        <h2>Blood Flow Restriction (BFR) & Rehab</h2>
+        <ul class="list">
+          <li>
+            <strong>PubMed (2025):</strong> Double-blind, randomized, placebo-controlled trial evaluating BFR training after ACL reconstruction.
+            <a href="https://pubmed.ncbi.nlm.nih.gov/39350350/" target="_blank" rel="noopener noreferrer">Read</a>
+          </li>
+          <li>
+            <strong>Arthroscopy, Sports Medicine & Rehabilitation (2025):</strong> Practical overview of BFR training to enhance rehabilitation and injury prevention.
+            <a href="https://www.arthroscopysportsmedicineandrehabilitation.org/article/S2666-061X(24)00165-2/fulltext" target="_blank" rel="noopener noreferrer">Read</a>
+          </li>
+        </ul>
+        <div class="small">Sources: PubMed RCT + BFR rehab overview. :contentReference[oaicite:3]{index=3}</div>
+      </div>
+
+      <div class="card">
+        <h2>Technology & Rehab</h2>
+        <ul class="list">
+          <li>
+            <strong>JMIR Serious Games (2025):</strong> Mixed Reality–based physical therapy platform study in older adults with sarcopenia.
+            <a href="https://games.jmir.org/2025/1/e76357" target="_blank" rel="noopener noreferrer">Read</a>
+          </li>
+        </ul>
+        <div class="small">Source: JMIR Serious Games (mixed reality PT). :contentReference[oaicite:4]{index=4}</div>
+      </div>
+    </div>
+
+    <div class="footer">© <span id="year"></span> BSTL Physical Therapy Group</div>
+  </div>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
 
