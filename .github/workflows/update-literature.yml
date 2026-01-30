@@ -39,4 +39,3 @@ jobs:
             git commit -m "Weekly Literature Lane update"
             git push
           fi
-
