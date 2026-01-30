@@ -15,6 +15,19 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Show files (debug)
+        run: |
+          echo "=== repo root ==="
+          ls -la
+          echo "=== .github ==="
+          ls -la .github || true
+          echo "=== .github/workflows ==="
+          ls -la .github/workflows || true
+          echo "=== scripts folder ==="
+          ls -la scripts || true
+          echo "=== find updater files ==="
+          find . -maxdepth 3 -type f -name "*update*literature*.py" -print
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -26,8 +39,7 @@ jobs:
           NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
           SLEEP: "0.05"
         run: |
-          ls -la
-          ls -la scripts
+          python --version
           python scripts/update_literature_weekly.py
 
       - name: Commit & push if changed
