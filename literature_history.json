@@ -1,6 +1,14 @@
 {
-  "Orthopedics": [],
-  "Sports": [],
-  "Geriatrics": [],
-  "Neurological": []
+  "Orthopedics": [
+    "41603550"
+  ],
+  "Sports": [
+    "41602261"
+  ],
+  "Geriatrics": [
+    "41609116"
+  ],
+  "Neurological": [
+    "41609116"
+  ]
 }
