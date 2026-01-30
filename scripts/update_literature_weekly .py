@@ -12,8 +12,10 @@ from datetime import datetime, timedelta, timezone
 # Settings
 # -----------------------------
 LITERATURE_FILE = "literature.html"
-EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+HISTORY_FILE = "literature_history.json"
+MAX_HISTORY = 120  # keep last 120 PMIDs per category so you don't repeat for a long time
 
+EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 NCBI_EMAIL = os.environ.get("NCBI_EMAIL", "example@example.com")
 NCBI_API_KEY = os.environ.get("NCBI_API_KEY")  # optional but recommended
 
@@ -21,12 +23,12 @@ NCBI_API_KEY = os.environ.get("NCBI_API_KEY")  # optional but recommended
 DAYS_BACK = 365 * 2
 
 # Pull multiple candidates so we can pick the best match
-RETMAX = 40
+RETMAX = 60
 
-# Score only top N (keeps it fast)
-SCORE_TOP_N = 18
+# Score only top N candidates (keeps it fast)
+SCORE_TOP_N = 25
 
-# Small delay to be nice to the API (set to "0" if you add NCBI_API_KEY)
+# Small delay to be nice to PubMed (set to "0" if you add NCBI_API_KEY)
 SLEEP = float(os.environ.get("SLEEP", "0.05"))
 
 # -----------------------------
@@ -35,10 +37,9 @@ SLEEP = float(os.environ.get("SLEEP", "0.05"))
 APTA_CPG_HUB_URL = "https://www.apta.org/patient-care/evidence-based-practice-resources/cpgs"
 
 # -----------------------------
-# Category setup
-# - Uses PubMed as the aggregator (covers JOSPT, JNPT, AJSM, etc.)
-# - Biases selection toward your preferred journals via scoring.
-# - Topic examples anchor the category, but we still allow related category topics.
+# Categories
+# - Uses PubMed as an index (covers JOSPT/JNPT/AJSM etc.)
+# - Biases toward preferred journals via scoring (still allows other relevant topics).
 # -----------------------------
 SECTIONS = [
     {
@@ -51,7 +52,7 @@ SECTIONS = [
             'NOT (thrombectomy[tiab] OR endovascular[tiab] OR catheter[tiab] OR hospice[tiab] OR audiology[tiab] OR hearing[tiab])'
         ),
         "preferred_journals": [
-            "J Orthop Sports Phys Ther",  # JOSPT (PubMed abbreviation)
+            "J Orthop Sports Phys Ther",  # JOSPT
             "Phys Ther",                  # PTJ
         ],
         "must_terms": ["physical therapy", "physiotherapy", "rehabilitation", "exercise"],
@@ -74,9 +75,9 @@ SECTIONS = [
             'NOT (thrombectomy[tiab] OR endovascular[tiab] OR hospice[tiab] OR audiology[tiab] OR hearing[tiab] OR cost[tiab])'
         ),
         "preferred_journals": [
-            "Am J Sports Med",             # AJSM (PubMed abbreviation)
+            "Am J Sports Med",             # AJSM
             "J Orthop Sports Phys Ther",   # JOSPT
-            "Br J Sports Med",             # high-quality sports rehab (extra)
+            "Br J Sports Med",             # extra strong sports rehab source
         ],
         "must_terms": ["sports", "athlete", "return to sport", "acl", "tendinopathy", "running"],
         "boost_terms": [
@@ -116,7 +117,7 @@ SECTIONS = [
             'NOT (thrombectomy[tiab] OR endovascular[tiab] OR catheter[tiab] OR hospice[tiab] OR cost[tiab])'
         ),
         "preferred_journals": [
-            "J Neurol Phys Ther",          # JNPT (PubMed abbreviation)
+            "J Neurol Phys Ther",          # JNPT
             "Neurorehabil Neural Repair",
             "Phys Ther",
         ],
@@ -133,7 +134,7 @@ SECTIONS = [
 # HTTP helpers
 # -----------------------------
 def http_get(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": "BSTL-Literature-Updater/3.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "BSTL-Literature-Updater/weekly/1.0"})
     with urllib.request.urlopen(req, timeout=40) as resp:
         return resp.read().decode("utf-8", errors="replace")
 
@@ -258,7 +259,7 @@ def score_relevance(blob: str, sec: dict, journal: str) -> int:
 
     score = 0
 
-    # Strong preference for certain journals (still PubMed-indexed)
+    # Strong preference for certain journals
     for pj in sec["preferred_journals"]:
         if pj.lower() in j:
             score += 25
@@ -268,12 +269,12 @@ def score_relevance(blob: str, sec: dict, journal: str) -> int:
         if w.lower() in t:
             score += 8
 
-    # Topic boosts (category fit)
+    # Topic boosts
     for w in sec["boost_terms"]:
         if w.lower() in t:
             score += 3
 
-    # Mild boost for “evidence type”
+    # Mild boost for stronger evidence types
     if any(k in t for k in ["randomized", "trial", "systematic review", "meta-analysis", "guideline", "cohort"]):
         score += 4
 
@@ -358,13 +359,12 @@ def build_section_card(section_name: str, pmid: str, meta: dict, abstract: str) 
     """.strip()
 
 def build_apta_resources_card() -> str:
-    # Static/manual links only (no scraping)
     return f"""
     <div class="card">
       <h2>APTA Resources</h2>
       <p><strong>Clinical Practice Guidelines (CPGs)</strong></p>
       <p class="small">
-        Curated evidence-based practice resources from the American Physical Therapy Association.
+        Evidence-based practice resources from the American Physical Therapy Association (manual links; no scraping).
       </p>
       <p>
         <a class="btn" href="{APTA_CPG_HUB_URL}" target="_blank" rel="noopener noreferrer">
@@ -372,11 +372,34 @@ def build_apta_resources_card() -> str:
         </a>
       </p>
       <p class="small">
-        Tip: Use CPGs to support clinical decision-making and standardize outcome measures where appropriate.
+        Tip: Use CPGs to support clinical decision-making and standardize outcome measures when appropriate.
       </p>
     </div>
     """.strip()
 
+# -----------------------------
+# History (no repeats)
+# -----------------------------
+def load_history() -> dict:
+    if not os.path.exists(HISTORY_FILE):
+        return {s["name"]: [] for s in SECTIONS}
+    try:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        # Ensure every section exists
+        for s in SECTIONS:
+            data.setdefault(s["name"], [])
+        return data
+    except Exception:
+        return {s["name"]: [] for s in SECTIONS}
+
+def save_history(hist: dict) -> None:
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(hist, f, indent=2)
+
+# -----------------------------
+# HTML injection
+# -----------------------------
 def inject_into_literature(new_html: str) -> bool:
     with open(LITERATURE_FILE, "r", encoding="utf-8") as f:
         content = f.read()
@@ -403,9 +426,11 @@ def main():
     start = (now - timedelta(days=DAYS_BACK)).strftime("%Y/%m/%d")
     end = now.strftime("%Y/%m/%d")
 
+    history = load_history()
+
     header = (
         f'<p class="small"><strong>Auto-updated:</strong> {now.strftime("%b %d, %Y")} (UTC) • '
-        f'Articles: PubMed-indexed journals (incl. JOSPT/JNPT/AJSM) • Window: past 2 years</p>'
+        f'Weekly articles: PubMed-indexed journals (incl. JOSPT/JNPT/AJSM) • Window: past 2 years • No repeats</p>'
     )
 
     cards = [header, '<div class="grid">']
@@ -426,7 +451,11 @@ def main():
             """.strip())
             continue
 
-        candidate_pmids = ids[:SCORE_TOP_N]
+        used = set(str(x) for x in history.get(name, []))
+        filtered = [pmid for pmid in ids if str(pmid) not in used]
+
+        # If we filtered everything (rare), fall back so page can still update
+        candidate_pmids = (filtered[:SCORE_TOP_N] if filtered else ids[:SCORE_TOP_N])
 
         meta_map = esummary_batch(candidate_pmids)
         if SLEEP:
@@ -447,27 +476,32 @@ def main():
             blob = f"{title} {journal} {abstract}"
 
             s = score_relevance(blob, sec, journal)
-
             if s > best["score"]:
                 best = {"pmid": str(pmid), "meta": meta, "abstract": abstract, "score": s}
 
-        # Minimum relevance threshold so categories don't drift
+        # Minimum threshold prevents drift across categories
         if not best["pmid"] or best["score"] < 18:
             cards.append(f"""
             <div class="card">
               <h2>{safe(name)}</h2>
-              <p><em>No strong match found this month within the past 2 years. (If this happens often, broaden keywords.)</em></p>
+              <p><em>No strong match found this week within the past 2 years. (If this happens often, broaden keywords.)</em></p>
             </div>
             """.strip())
         else:
             cards.append(build_section_card(name, best["pmid"], best["meta"], best["abstract"]))
 
-    # Add APTA resources (manual links only)
-    cards.append(build_apta_resources_card())
+            # Save PMID to history so it won't repeat
+            history.setdefault(name, [])
+            history[name].insert(0, best["pmid"])
+            history[name] = history[name][:MAX_HISTORY]
 
+    # Add APTA resources box (manual link only)
+    cards.append(build_apta_resources_card())
     cards.append("</div>")
 
     changed = inject_into_literature("\n".join(cards))
+    save_history(history)
+
     print("Updated:", changed)
 
 if __name__ == "__main__":
