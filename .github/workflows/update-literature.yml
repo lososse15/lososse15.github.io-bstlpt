@@ -24,7 +24,7 @@ jobs:
         env:
           NCBI_EMAIL: "youremail@email.com"
           NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
-          SLEEP: "0.05"
+          SLEEP: "0"
         run: python scripts/update_literature_monthly.py
 
       - name: Commit & push if changed
