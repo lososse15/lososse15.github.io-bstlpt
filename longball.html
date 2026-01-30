@@ -1,1 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Longball - BSTL</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
 
+    <div class="nav">
+      <div class="brand">BSTL</div>
+      <div class="navlinks">
+        <a href="index.html">Home</a>
+        <a href="team.html">Team</a>
+        <a href="literature.html">Literature Lane</a>
+      </div>
+    </div>
+
+    <div class="hero">
+      <h1>Longball, PT, DPT</h1>
+      <div class="subtitle">University of Larry Graduate</div>
+      <p>
+        Longball is a Doctor of Physical Therapy with a practical, performance-oriented approach to rehabilitation.
+        He specializes in orthopedic rehab, progressive loading, and return-to-activity planning for active individuals.
+      </p>
+      <div class="buttons">
+        <a class="btn" href="team.html">← Back to Team</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Clinical Focus</h2>
+        <ul class="list">
+          <li>Orthopedic rehabilitation and progressive strengthening</li>
+          <li>Return-to-sport and return-to-work preparation</li>
+          <li>Education-driven plans that build confidence and independence</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Bio</h2>
+        <p>
+          Longball completed his Doctor of Physical Therapy training at the University of Larry.
+          He emphasizes clear goal setting, measurable progress, and movement quality—helping patients understand
+          “why” behind the plan so they can own their recovery and stay active long-term.
+        </p>
+      </div>
+    </div>
+
+    <div class="footer">© <span id="year"></span> BSTL Physical Therapy Group</div>
+  </div>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
