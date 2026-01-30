@@ -26,7 +26,7 @@ jobs:
           NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }} # optional but recommended
           SLEEP: "0.05"
         run: |
-          python scripts/update_literature_monthly.py
+       python scripts/update_literature_weekly.py
 
       - name: Commit & push if changed
         run: |
