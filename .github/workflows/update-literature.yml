@@ -3,7 +3,7 @@ name: Update Literature Lane (Weekly)
 on:
   schedule:
     - cron: "0 14 * * 1"   # Every Monday at 14:00 UTC
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -20,13 +20,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Update literature.html
+      - name: Run updater
         env:
-          NCBI_EMAIL: "youremail@email.com"          # CHANGE THIS
-          NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }} # optional but recommended
+          NCBI_EMAIL: "youremail@email.com"
+          NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
           SLEEP: "0.05"
-        run: |
-       python scripts/update_literature_weekly.py
+        run: python scripts/update_literature_monthly.py
 
       - name: Commit & push if changed
         run: |
