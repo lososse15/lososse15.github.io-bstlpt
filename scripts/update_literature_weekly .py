@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 # -----------------------------
 LITERATURE_FILE = "literature.html"
 HISTORY_FILE = "literature_history.json"
-MAX_HISTORY = 120  # keep last 120 PMIDs per category so you don't repeat for a long time
+MAX_HISTORY = 120  # keep last 120 PMIDs per category
 
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 NCBI_EMAIL = os.environ.get("NCBI_EMAIL", "example@example.com")
@@ -24,23 +24,14 @@ DAYS_BACK = 365 * 2
 
 # Pull multiple candidates so we can pick the best match
 RETMAX = 60
-
-# Score only top N candidates (keeps it fast)
-SCORE_TOP_N = 25
+SCORE_TOP_N = 25  # number of candidates to score per section
 
 # Small delay to be nice to PubMed (set to "0" if you add NCBI_API_KEY)
 SLEEP = float(os.environ.get("SLEEP", "0.05"))
 
-# -----------------------------
-# Manual APTA resource links (NO SCRAPING)
-# -----------------------------
+# Manual APTA resource link (no scraping)
 APTA_CPG_HUB_URL = "https://www.apta.org/patient-care/evidence-based-practice-resources/cpgs"
 
-# -----------------------------
-# Categories
-# - Uses PubMed as an index (covers JOSPT/JNPT/AJSM etc.)
-# - Biases toward preferred journals via scoring (still allows other relevant topics).
-# -----------------------------
 SECTIONS = [
     {
         "name": "Orthopedics",
@@ -51,10 +42,7 @@ SECTIONS = [
             '"post-operative"[tiab] OR postoperative[tiab] OR post-op[tiab] OR "total knee"[tiab] OR "total hip"[tiab]) '
             'NOT (thrombectomy[tiab] OR endovascular[tiab] OR catheter[tiab] OR hospice[tiab] OR audiology[tiab] OR hearing[tiab])'
         ),
-        "preferred_journals": [
-            "J Orthop Sports Phys Ther",  # JOSPT
-            "Phys Ther",                  # PTJ
-        ],
+        "preferred_journals": ["J Orthop Sports Phys Ther", "Phys Ther"],
         "must_terms": ["physical therapy", "physiotherapy", "rehabilitation", "exercise"],
         "boost_terms": [
             "low back pain", "lumbar", "manual therapy",
@@ -74,11 +62,7 @@ SECTIONS = [
             'plyometric*[tiab] OR hop[tiab] OR "strength training"[tiab]) '
             'NOT (thrombectomy[tiab] OR endovascular[tiab] OR hospice[tiab] OR audiology[tiab] OR hearing[tiab] OR cost[tiab])'
         ),
-        "preferred_journals": [
-            "Am J Sports Med",             # AJSM
-            "J Orthop Sports Phys Ther",   # JOSPT
-            "Br J Sports Med",             # extra strong sports rehab source
-        ],
+        "preferred_journals": ["Am J Sports Med", "J Orthop Sports Phys Ther", "Br J Sports Med"],
         "must_terms": ["sports", "athlete", "return to sport", "acl", "tendinopathy", "running"],
         "boost_terms": [
             "rehabilitation", "reinjury", "plyometric", "hop test",
@@ -95,11 +79,7 @@ SECTIONS = [
             'falls[tiab] OR fall[tiab] OR balance[tiab] OR sarcopenia[tiab] OR "hip fracture"[tiab] OR osteoporosis[tiab]) '
             'NOT (audiology[tiab] OR hearing[tiab] OR cochlear[tiab] OR thrombectomy[tiab] OR endovascular[tiab])'
         ),
-        "preferred_journals": [
-            "J Geriatr Phys Ther",
-            "Phys Ther",
-            "J Orthop Sports Phys Ther",
-        ],
+        "preferred_journals": ["J Geriatr Phys Ther", "Phys Ther", "J Orthop Sports Phys Ther"],
         "must_terms": ["older", "falls", "balance", "frailty", "sarcopenia", "hip fracture"],
         "boost_terms": [
             "exercise", "strength", "multicomponent", "home-based",
@@ -116,11 +96,7 @@ SECTIONS = [
             'gait[tiab] OR walking[tiab] OR balance[tiab] OR neurorehabilitation[tiab]) '
             'NOT (thrombectomy[tiab] OR endovascular[tiab] OR catheter[tiab] OR hospice[tiab] OR cost[tiab])'
         ),
-        "preferred_journals": [
-            "J Neurol Phys Ther",          # JNPT
-            "Neurorehabil Neural Repair",
-            "Phys Ther",
-        ],
+        "preferred_journals": ["J Neurol Phys Ther", "Neurorehabil Neural Repair", "Phys Ther"],
         "must_terms": ["stroke", "parkinson", "vestibular", "gait", "walking", "balance"],
         "boost_terms": [
             "task-specific", "gait training", "treadmill",
@@ -134,7 +110,7 @@ SECTIONS = [
 # HTTP helpers
 # -----------------------------
 def http_get(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": "BSTL-Literature-Updater/weekly/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "BSTL-Literature-Updater/weekly/2.0"})
     with urllib.request.urlopen(req, timeout=40) as resp:
         return resp.read().decode("utf-8", errors="replace")
 
@@ -211,6 +187,16 @@ def efetch_abstracts(pmids: list[str]) -> dict[str, str]:
 def pubmed_link(pmid: str) -> str:
     return f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
 
+def doi_link(doi: str) -> str:
+    return f"https://doi.org/{doi}"
+
+def pmc_link(pmcid: str) -> str:
+    # pmcid often looks like "PMC1234567"
+    pmcid = pmcid.strip()
+    if not pmcid.upper().startswith("PMC"):
+        pmcid = "PMC" + pmcid
+    return f"https://pmc.ncbi.nlm.nih.gov/articles/{pmcid}/"
+
 def safe(s: str) -> str:
     return html.escape(s or "")
 
@@ -220,7 +206,6 @@ def normalize_space(s: str) -> str:
 def extract_stats(abstract: str) -> str:
     if not abstract:
         return ""
-
     patterns = [
         r"\bn\s*=\s*\d+\b",
         r"\b\d+(\.\d+)?\s*%\b",
@@ -229,12 +214,10 @@ def extract_stats(abstract: str) -> str:
         r"\b(OR|RR|HR)\s*[:=]?\s*\d+(\.\d+)?\b",
         r"\b\d+(\.\d+)?\s*(weeks|week|months|month|days|day)\b",
     ]
-
     hits = []
     for pat in patterns:
         for m in re.finditer(pat, abstract, flags=re.IGNORECASE):
             hits.append(m.group(0))
-
     seen = set()
     out = []
     for x in hits:
@@ -246,8 +229,14 @@ def extract_stats(abstract: str) -> str:
             continue
         seen.add(key)
         out.append(x)
-
     return ", ".join(out[:10])
+
+def get_article_id(meta: dict, idtype: str) -> str:
+    # PubMed esummary returns meta["articleids"] as a list of {idtype, value}
+    for item in meta.get("articleids", []) or []:
+        if (item.get("idtype") or "").lower() == idtype.lower():
+            return (item.get("value") or "").strip()
+    return ""
 
 def score_relevance(blob: str, sec: dict, journal: str) -> int:
     t = (blob or "").lower()
@@ -259,32 +248,24 @@ def score_relevance(blob: str, sec: dict, journal: str) -> int:
 
     score = 0
 
-    # Strong preference for certain journals
     for pj in sec["preferred_journals"]:
         if pj.lower() in j:
             score += 25
 
-    # Must terms (PT/rehab signal)
     for w in sec["must_terms"]:
         if w.lower() in t:
             score += 8
 
-    # Topic boosts
     for w in sec["boost_terms"]:
         if w.lower() in t:
             score += 3
 
-    # Mild boost for stronger evidence types
     if any(k in t for k in ["randomized", "trial", "systematic review", "meta-analysis", "guideline", "cohort"]):
         score += 4
 
     return score
 
 def structured_summary(abstract: str) -> dict:
-    """
-    Background / Results / Conclusion / How to apply this (PT practice).
-    Professional + easy to understand. Abstract-only.
-    """
     if not abstract:
         return {
             "background": "No abstract was available in the PubMed record for this article.",
@@ -337,24 +318,73 @@ def structured_summary(abstract: str) -> dict:
 
     return {"background": background, "results": results, "conclusion": conclusion, "apply": apply}
 
-def build_section_card(section_name: str, pmid: str, meta: dict, abstract: str) -> str:
+def build_access_buttons(pmid: str, meta: dict) -> str:
+    doi = get_article_id(meta, "doi")
+    pmcid = get_article_id(meta, "pmcid")  # only present if available in PMC
+
+    btns = []
+    btns.append(
+        f'<a class="pill" href="{pubmed_link(pmid)}" target="_blank" rel="noopener noreferrer">PubMed</a>'
+    )
+
+    if doi:
+        btns.append(
+            f'<a class="pill" href="{doi_link(doi)}" target="_blank" rel="noopener noreferrer">DOI</a>'
+        )
+
+    if pmcid:
+        btns.append(
+            f'<a class="pill" href="{pmc_link(pmcid)}" target="_blank" rel="noopener noreferrer">PMC (Full text)</a>'
+        )
+
+    return '<div class="pills">' + "\n".join(btns) + "</div>"
+
+def build_previous_featured_list(prev_pmids: list[str], prev_meta_map: dict[str, dict]) -> str:
+    if not prev_pmids:
+        return '<p class="small"><em>No previous featured articles yet.</em></p>'
+
+    items = []
+    for pmid in prev_pmids:
+        meta = prev_meta_map.get(str(pmid), {})
+        title = (meta.get("title") or "").rstrip(".")
+        if not title:
+            title = f"PMID {pmid}"
+        items.append(
+            f'<li><a href="{pubmed_link(pmid)}" target="_blank" rel="noopener noreferrer">{safe(title)}</a>'
+            f' <span class="small">(PMID: {safe(str(pmid))})</span></li>'
+        )
+
+    return f"""
+    <ul class="list">
+      {''.join(items)}
+    </ul>
+    """.strip()
+
+def build_section_card(section_name: str, pmid: str, meta: dict, abstract: str, prev_pmids: list[str], prev_meta_map: dict[str, dict]) -> str:
     title = safe((meta.get("title") or "").rstrip("."))
     journal = safe(meta.get("source") or meta.get("fulljournalname") or "Journal")
     pubdate = safe(meta.get("pubdate") or "Date not listed")
-    link = pubmed_link(pmid)
 
     summ = structured_summary(abstract)
+    access = build_access_buttons(pmid, meta)
+    prev_list = build_previous_featured_list(prev_pmids, prev_meta_map)
 
     return f"""
     <div class="card">
       <h2>{safe(section_name)}</h2>
-      <p><strong><a href="{link}" target="_blank" rel="noopener noreferrer">{title}</a></strong></p>
+      <p><strong>{title}</strong></p>
       <p class="small">{journal} • {pubdate} • PMID: {safe(pmid)}</p>
 
       <p><strong>Background:</strong> {safe(summ["background"])}</p>
       <p><strong>Results:</strong> {safe(summ["results"])}</p>
       <p><strong>Conclusion:</strong> {safe(summ["conclusion"])}</p>
       <p><strong>How to apply this:</strong> {safe(summ["apply"])}</p>
+
+      <p><strong>Access full article:</strong></p>
+      {access}
+
+      <p style="margin-top:14px;"><strong>Previously featured:</strong></p>
+      {prev_list}
     </div>
     """.strip()
 
@@ -366,11 +396,9 @@ def build_apta_resources_card() -> str:
       <p class="small">
         Evidence-based practice resources from the American Physical Therapy Association (manual links; no scraping).
       </p>
-      <p>
-        <a class="btn" href="{APTA_CPG_HUB_URL}" target="_blank" rel="noopener noreferrer">
-          Open APTA CPG Hub
-        </a>
-      </p>
+      <div class="pills">
+        <a class="pill" href="{APTA_CPG_HUB_URL}" target="_blank" rel="noopener noreferrer">APTA CPG Hub</a>
+      </div>
       <p class="small">
         Tip: Use CPGs to support clinical decision-making and standardize outcome measures when appropriate.
       </p>
@@ -386,9 +414,11 @@ def load_history() -> dict:
     try:
         with open(HISTORY_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-        # Ensure every section exists
         for s in SECTIONS:
             data.setdefault(s["name"], [])
+        # normalize to list of strings
+        for k in list(data.keys()):
+            data[k] = [str(x) for x in (data.get(k) or [])]
         return data
     except Exception:
         return {s["name"]: [] for s in SECTIONS}
@@ -428,34 +458,22 @@ def main():
 
     history = load_history()
 
-    header = (
-        f'<p class="small"><strong>Auto-updated:</strong> {now.strftime("%b %d, %Y")} (UTC) • '
-        f'Weekly articles: PubMed-indexed journals (incl. JOSPT/JNPT/AJSM) • Window: past 2 years • No repeats</p>'
-    )
-
-    cards = [header, '<div class="grid">']
-
+    # First pass: pick this week's best PMID per section (no repeats)
+    chosen = {}  # section -> dict(pmid, meta, abstract)
     for sec in SECTIONS:
         name = sec["name"]
-
         ids = esearch(sec["topic_query"], mindate=start, maxdate=end, retmax=RETMAX)
         if SLEEP:
             time.sleep(SLEEP)
 
         if not ids:
-            cards.append(f"""
-            <div class="card">
-              <h2>{safe(name)}</h2>
-              <p><em>No recent results found (past 2 years) for this category query.</em></p>
-            </div>
-            """.strip())
+            chosen[name] = {"pmid": "", "meta": {}, "abstract": "", "score": -999}
             continue
 
-        used = set(str(x) for x in history.get(name, []))
-        filtered = [pmid for pmid in ids if str(pmid) not in used]
+        used = set(history.get(name, []))
+        filtered = [str(p) for p in ids if str(p) not in used]
 
-        # If we filtered everything (rare), fall back so page can still update
-        candidate_pmids = (filtered[:SCORE_TOP_N] if filtered else ids[:SCORE_TOP_N])
+        candidate_pmids = (filtered[:SCORE_TOP_N] if filtered else [str(p) for p in ids[:SCORE_TOP_N]])
 
         meta_map = esummary_batch(candidate_pmids)
         if SLEEP:
@@ -465,12 +483,10 @@ def main():
         if SLEEP:
             time.sleep(SLEEP)
 
-        best = {"pmid": None, "meta": None, "abstract": "", "score": -999}
-
+        best = {"pmid": "", "meta": {}, "abstract": "", "score": -999}
         for pmid in candidate_pmids:
             meta = meta_map.get(str(pmid), {})
             abstract = abstract_map.get(str(pmid), "")
-
             title = meta.get("title", "")
             journal = meta.get("source", "") or meta.get("fulljournalname", "")
             blob = f"{title} {journal} {abstract}"
@@ -479,23 +495,61 @@ def main():
             if s > best["score"]:
                 best = {"pmid": str(pmid), "meta": meta, "abstract": abstract, "score": s}
 
-        # Minimum threshold prevents drift across categories
-        if not best["pmid"] or best["score"] < 18:
-            cards.append(f"""
-            <div class="card">
-              <h2>{safe(name)}</h2>
-              <p><em>No strong match found this week within the past 2 years. (If this happens often, broaden keywords.)</em></p>
-            </div>
-            """.strip())
-        else:
-            cards.append(build_section_card(name, best["pmid"], best["meta"], best["abstract"]))
+        chosen[name] = best
 
-            # Save PMID to history so it won't repeat
+        # If we found a strong match, store it so we never repeat it
+        if best["pmid"] and best["score"] >= 18:
             history.setdefault(name, [])
             history[name].insert(0, best["pmid"])
             history[name] = history[name][:MAX_HISTORY]
 
-    # Add APTA resources box (manual link only)
+    # Build "previous featured" metas (titles) in one batch
+    prev_pmids_all = []
+    prev_pmids_by_section = {}
+    for sec in SECTIONS:
+        name = sec["name"]
+        prev = history.get(name, [])[1:6]  # last 5 excluding the newest one
+        prev_pmids_by_section[name] = prev
+        prev_pmids_all.extend(prev)
+
+    # unique
+    prev_unique = list(dict.fromkeys(prev_pmids_all))
+    prev_meta_map = esummary_batch(prev_unique) if prev_unique else {}
+    if prev_unique and SLEEP:
+        time.sleep(SLEEP)
+
+    header = (
+        f'<p class="small"><strong>Auto-updated:</strong> {now.strftime("%b %d, %Y")} (UTC) • '
+        f'Weekly articles: PubMed-indexed journals (incl. JOSPT/JNPT/AJSM) • Window: past 2 years • No repeats</p>'
+    )
+
+    cards = [header, '<div class="grid">']
+
+    for sec in SECTIONS:
+        name = sec["name"]
+        best = chosen.get(name, {"pmid": "", "meta": {}, "abstract": "", "score": -999})
+
+        if not best["pmid"] or best["score"] < 18:
+            cards.append(f"""
+            <div class="card">
+              <h2>{safe(name)}</h2>
+              <p><em>No strong match found this week within the past 2 years.</em></p>
+              <p class="small">Tip: This can happen if PubMed results are thin or don’t match the category filters.</p>
+            </div>
+            """.strip())
+        else:
+            cards.append(
+                build_section_card(
+                    name,
+                    best["pmid"],
+                    best["meta"],
+                    best["abstract"],
+                    prev_pmids_by_section.get(name, []),
+                    prev_meta_map
+                )
+            )
+
+    # Add APTA resources box
     cards.append(build_apta_resources_card())
     cards.append("</div>")
 
@@ -506,3 +560,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
