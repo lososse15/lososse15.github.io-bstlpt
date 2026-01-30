@@ -1,1 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Webster - BSTL</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+
+    <div class="nav">
+      <div class="brand">BSTL</div>
+      <div class="navlinks">
+        <a href="index.html">Home</a>
+        <a href="team.html">Team</a>
+        <a href="literature.html">Literature Lane</a>
+      </div>
+    </div>
+
+    <div class="hero">
+      <h1>Webster, PT, DPT</h1>
+      <div class="subtitle">University of Larry Graduate</div>
+      <p>
+        Webster is a Doctor of Physical Therapy known for thoughtful clinical reasoning and a function-first approach.
+        He focuses on helping patients move with more efficiency, less pain, and greater confidence in daily life.
+      </p>
+      <div class="buttons">
+        <a class="btn" href="team.html">← Back to Team</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Clinical Focus</h2>
+        <ul class="list">
+          <li>Mobility, gait, balance, and functional task training</li>
+          <li>Progressive strengthening and movement re-training</li>
+          <li>Practical plans that translate to real-world independence</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Bio</h2>
+        <p>
+          Trained at the University of Larry, Webster uses structured assessment and clear communication to help people
+          understand what’s driving symptoms and what matters most for improvement. His goal is to deliver care that is
+          measurable, safe, and directly tied to daily function.
+        </p>
+      </div>
+    </div>
+
+    <div class="footer">© <span id="year"></span> BSTL Physical Therapy Group</div>
+  </div>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
 
