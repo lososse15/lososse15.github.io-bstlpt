@@ -23,17 +23,22 @@ DAYS_BACK = 365 * 2
 # Pull multiple candidates so we can pick the best match
 RETMAX = 40
 
-# Limit how many candidates we score deeply per section (keeps it fast)
+# Score only top N (keeps it fast)
 SCORE_TOP_N = 18
 
-# Gentle delay (set to 0.00 if you add NCBI_API_KEY)
+# Small delay to be nice to the API (set to "0" if you add NCBI_API_KEY)
 SLEEP = float(os.environ.get("SLEEP", "0.05"))
 
 # -----------------------------
+# Manual APTA resource links (NO SCRAPING)
+# -----------------------------
+APTA_CPG_HUB_URL = "https://www.apta.org/patient-care/evidence-based-practice-resources/cpgs"
+
+# -----------------------------
 # Category setup
-# Notes:
-# - We treat your “example topics” as anchors, but still allow other relevant topics.
-# - We bias toward journals you want by scoring journals higher.
+# - Uses PubMed as the aggregator (covers JOSPT, JNPT, AJSM, etc.)
+# - Biases selection toward your preferred journals via scoring.
+# - Topic examples anchor the category, but we still allow related category topics.
 # -----------------------------
 SECTIONS = [
     {
@@ -47,17 +52,15 @@ SECTIONS = [
         ),
         "preferred_journals": [
             "J Orthop Sports Phys Ther",  # JOSPT (PubMed abbreviation)
-            "JOSPT",                      # sometimes appears
-            "Phys Ther",                  # PTJ / Physical Therapy
-            "JOSPT Open",
+            "Phys Ther",                  # PTJ
         ],
         "must_terms": ["physical therapy", "physiotherapy", "rehabilitation", "exercise"],
         "boost_terms": [
-            "outpatient", "manual therapy", "exercise therapy",
-            "low back pain", "lumbar",
-            "rotator cuff", "shoulder",
-            "osteoarthritis", "knee", "hip",
-            "postoperative", "post-op", "total knee", "total hip"
+            "low back pain", "lumbar", "manual therapy",
+            "shoulder", "rotator cuff",
+            "knee osteoarthritis", "osteoarthritis", "hip",
+            "postoperative", "post-op", "total knee", "total hip",
+            "outpatient", "exercise therapy"
         ],
         "ban_terms": ["thrombectomy", "endovascular", "catheter", "audiology", "hearing", "hospice", "cost", "disposition"],
     },
@@ -66,21 +69,22 @@ SECTIONS = [
         "topic_query": (
             '("physical therapy"[tiab] OR physiotherapy[tiab] OR rehabilitation[tiab]) '
             'AND (sports[tiab] OR athlete*[tiab] OR "return to sport"[tiab] OR ACL[tiab] OR "anterior cruciate"[tiab] OR '
-            'tendinopathy[tiab] OR "running injury"[tiab] OR running[tiab] OR "Achilles"[tiab] OR patellar[tiab] OR '
+            'tendinopathy[tiab] OR "running injury"[tiab] OR running[tiab] OR achilles[tiab] OR patellar[tiab] OR '
             'plyometric*[tiab] OR hop[tiab] OR "strength training"[tiab]) '
             'NOT (thrombectomy[tiab] OR endovascular[tiab] OR hospice[tiab] OR audiology[tiab] OR hearing[tiab] OR cost[tiab])'
         ),
         "preferred_journals": [
             "Am J Sports Med",             # AJSM (PubMed abbreviation)
             "J Orthop Sports Phys Ther",   # JOSPT
-            "Br J Sports Med",             # good sports rehab source (extra, still professional)
+            "Br J Sports Med",             # high-quality sports rehab (extra)
         ],
         "must_terms": ["sports", "athlete", "return to sport", "acl", "tendinopathy", "running"],
         "boost_terms": [
-            "rehabilitation", "reinjury", "plyometric", "hop test", "graft",
-            "eccentric", "achilles", "patellar", "load management", "strength"
+            "rehabilitation", "reinjury", "plyometric", "hop test",
+            "eccentric", "achilles", "patellar",
+            "load management", "strength", "performance"
         ],
-        "ban_terms": ["thrombectomy", "endovascular", "catheter", "hospice", "cost", "disposition", "stroke unit"],
+        "ban_terms": ["thrombectomy", "endovascular", "catheter", "hospice", "cost", "disposition"],
     },
     {
         "name": "Geriatrics",
@@ -91,14 +95,15 @@ SECTIONS = [
             'NOT (audiology[tiab] OR hearing[tiab] OR cochlear[tiab] OR thrombectomy[tiab] OR endovascular[tiab])'
         ),
         "preferred_journals": [
-            "Phys Ther",                   # PTJ / Physical Therapy
-            "J Geriatr Phys Ther",         # geriatric PT journal
-            "J Orthop Sports Phys Ther",   # sometimes has older adult rehab topics
+            "J Geriatr Phys Ther",
+            "Phys Ther",
+            "J Orthop Sports Phys Ther",
         ],
         "must_terms": ["older", "falls", "balance", "frailty", "sarcopenia", "hip fracture"],
         "boost_terms": [
-            "exercise", "strength", "multicomponent", "home-based", "community",
-            "gait speed", "timed up and go", "tug", "sit-to-stand"
+            "exercise", "strength", "multicomponent", "home-based",
+            "gait speed", "timed up and go", "tug", "sit-to-stand",
+            "hip fracture rehabilitation"
         ],
         "ban_terms": ["audiology", "hearing", "cochlear", "thrombectomy", "endovascular", "catheter", "hospice"],
     },
@@ -107,18 +112,18 @@ SECTIONS = [
         "topic_query": (
             '("physical therapy"[tiab] OR physiotherapy[tiab] OR rehabilitation[tiab]) '
             'AND (stroke[tiab] OR poststroke[tiab] OR parkinson*[tiab] OR vestibular[tiab] OR dizziness[tiab] OR '
-            'gait[tiab] OR walking[tiab] OR balance[tiab] OR "neurorehabilitation"[tiab]) '
+            'gait[tiab] OR walking[tiab] OR balance[tiab] OR neurorehabilitation[tiab]) '
             'NOT (thrombectomy[tiab] OR endovascular[tiab] OR catheter[tiab] OR hospice[tiab] OR cost[tiab])'
         ),
         "preferred_journals": [
             "J Neurol Phys Ther",          # JNPT (PubMed abbreviation)
-            "Neurorehabil Neural Repair",  # extra good neuro rehab journal
+            "Neurorehabil Neural Repair",
             "Phys Ther",
         ],
         "must_terms": ["stroke", "parkinson", "vestibular", "gait", "walking", "balance"],
         "boost_terms": [
-            "task-specific", "gait training", "treadmill", "cueing",
-            "vestibular rehabilitation", "habituation", "vorr"
+            "task-specific", "gait training", "treadmill",
+            "cueing", "vestibular rehabilitation", "habituation"
         ],
         "ban_terms": ["thrombectomy", "endovascular", "catheter", "hospice", "cost", "disposition"],
     },
@@ -128,7 +133,7 @@ SECTIONS = [
 # HTTP helpers
 # -----------------------------
 def http_get(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": "BSTL-Literature-Updater/2.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "BSTL-Literature-Updater/3.0"})
     with urllib.request.urlopen(req, timeout=40) as resp:
         return resp.read().decode("utf-8", errors="replace")
 
@@ -159,11 +164,7 @@ def esearch(term: str, mindate: str, maxdate: str, retmax: int) -> list[str]:
 def esummary_batch(pmids: list[str]) -> dict[str, dict]:
     if not pmids:
         return {}
-    params = {
-        "db": "pubmed",
-        "id": ",".join(pmids),
-        "retmode": "json",
-    }
+    params = {"db": "pubmed", "id": ",".join(pmids), "retmode": "json"}
     url = f"{EUTILS}/esummary.fcgi?{build_params(params)}"
     data = json.loads(http_get(url))
     result = data.get("result", {})
@@ -175,11 +176,7 @@ def esummary_batch(pmids: list[str]) -> dict[str, dict]:
 def efetch_abstracts(pmids: list[str]) -> dict[str, str]:
     if not pmids:
         return {}
-    params = {
-        "db": "pubmed",
-        "id": ",".join(pmids),
-        "retmode": "xml",
-    }
+    params = {"db": "pubmed", "id": ",".join(pmids), "retmode": "xml"}
     url = f"{EUTILS}/efetch.fcgi?{build_params(params)}"
     xml_text = http_get(url)
 
@@ -220,9 +217,6 @@ def normalize_space(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "")).strip()
 
 def extract_stats(abstract: str) -> str:
-    """
-    Pull useful numeric snippets if present (only from abstract text).
-    """
     if not abstract:
         return ""
 
@@ -240,7 +234,6 @@ def extract_stats(abstract: str) -> str:
         for m in re.finditer(pat, abstract, flags=re.IGNORECASE):
             hits.append(m.group(0))
 
-    # de-dup
     seen = set()
     out = []
     for x in hits:
@@ -259,29 +252,28 @@ def score_relevance(blob: str, sec: dict, journal: str) -> int:
     t = (blob or "").lower()
     j = (journal or "").lower()
 
-    # hard bans
     for w in sec["ban_terms"]:
         if w.lower() in t:
             return -999
 
     score = 0
 
-    # prefer target journals
+    # Strong preference for certain journals (still PubMed-indexed)
     for pj in sec["preferred_journals"]:
         if pj.lower() in j:
             score += 25
 
-    # must terms (strong signals)
+    # Must terms (PT/rehab signal)
     for w in sec["must_terms"]:
         if w.lower() in t:
             score += 8
 
-    # topic boosts
+    # Topic boosts (category fit)
     for w in sec["boost_terms"]:
         if w.lower() in t:
             score += 3
 
-    # modest boost if looks like clinical rehab paper
+    # Mild boost for “evidence type”
     if any(k in t for k in ["randomized", "trial", "systematic review", "meta-analysis", "guideline", "cohort"]):
         score += 4
 
@@ -290,7 +282,7 @@ def score_relevance(blob: str, sec: dict, journal: str) -> int:
 def structured_summary(abstract: str) -> dict:
     """
     Background / Results / Conclusion / How to apply this (PT practice).
-    Uses labeled abstracts when present; otherwise uses heuristics.
+    Professional + easy to understand. Abstract-only.
     """
     if not abstract:
         return {
@@ -298,15 +290,14 @@ def structured_summary(abstract: str) -> dict:
             "results": "Key outcomes were not available from the abstract.",
             "conclusion": "Conclusion was not available from the abstract.",
             "apply": (
-                "If relevant to your setting and patient population, review the full text when possible and "
-                "translate the intervention into a measurable plan (dose, frequency, progression) while tracking outcomes."
+                "If this topic matches your caseload, review the full text when possible and translate the intervention "
+                "into a measurable plan (dose, frequency, progression) while tracking outcomes."
             ),
         }
 
     txt = abstract.strip()
 
     def grab(label: str) -> str:
-        # matches LABEL: ... until next ALLCAPS LABEL: or end
         m = re.search(
             rf"{label}\s*:\s*(.*?)(?=\n?[A-Z][A-Z \-]{{2,}}\s*:|$)",
             txt,
@@ -318,15 +309,17 @@ def structured_summary(abstract: str) -> dict:
     results = grab("RESULTS")
     conclusion = grab("CONCLUSION") or grab("CONCLUSIONS")
 
-    # fallback if not labeled
     if not (background and results and conclusion):
         sents = re.split(r"(?<=[.!?])\s+", normalize_space(txt))
         sents = [s for s in sents if s]
+
         if not background:
             background = " ".join(sents[:2]) if len(sents) >= 2 else (sents[0] if sents else normalize_space(txt))
+
         if not results:
             res_like = [s for s in sents if re.search(r"\b(result|significant|improv|effect|difference|odds|risk|CI|p\s*[<=>])\b", s, re.I)]
             results = " ".join(res_like[:3]) if res_like else (" ".join(sents[2:5]) if len(sents) > 3 else normalize_space(txt))
+
         if not conclusion:
             conclusion = sents[-1] if sents else normalize_space(txt)
 
@@ -335,19 +328,13 @@ def structured_summary(abstract: str) -> dict:
         results = normalize_space(results) + f" Key stats reported in the abstract: {stats}."
 
     apply = (
-        "How to apply this (Physical Therapy): Confirm the population and setting match your caseload. "
-        "If applicable, implement the main intervention principles (dose, intensity, frequency, progression) "
-        "and track response with objective outcomes (pain scale, PSFS/ODI/LEFS/QuickDASH as appropriate, strength/ROM, "
-        "gait speed, balance measures). Educate on expectations, monitor tolerance and safety, and individualize based on "
-        "goals, comorbidities, and baseline function."
+        "Confirm the population and setting match your caseload. If applicable, implement the main intervention principles "
+        "(dose, intensity, frequency, progression) and track response with objective outcomes (pain scale, PSFS/ODI/LEFS/QuickDASH "
+        "as appropriate, strength/ROM, gait speed, balance measures). Educate on expectations, monitor tolerance/safety, "
+        "and individualize based on goals, comorbidities, and baseline function."
     )
 
-    return {
-        "background": background,
-        "results": results,
-        "conclusion": conclusion,
-        "apply": apply,
-    }
+    return {"background": background, "results": results, "conclusion": conclusion, "apply": apply}
 
 def build_section_card(section_name: str, pmid: str, meta: dict, abstract: str) -> str:
     title = safe((meta.get("title") or "").rstrip("."))
@@ -367,6 +354,26 @@ def build_section_card(section_name: str, pmid: str, meta: dict, abstract: str) 
       <p><strong>Results:</strong> {safe(summ["results"])}</p>
       <p><strong>Conclusion:</strong> {safe(summ["conclusion"])}</p>
       <p><strong>How to apply this:</strong> {safe(summ["apply"])}</p>
+    </div>
+    """.strip()
+
+def build_apta_resources_card() -> str:
+    # Static/manual links only (no scraping)
+    return f"""
+    <div class="card">
+      <h2>APTA Resources</h2>
+      <p><strong>Clinical Practice Guidelines (CPGs)</strong></p>
+      <p class="small">
+        Curated evidence-based practice resources from the American Physical Therapy Association.
+      </p>
+      <p>
+        <a class="btn" href="{APTA_CPG_HUB_URL}" target="_blank" rel="noopener noreferrer">
+          Open APTA CPG Hub
+        </a>
+      </p>
+      <p class="small">
+        Tip: Use CPGs to support clinical decision-making and standardize outcome measures where appropriate.
+      </p>
     </div>
     """.strip()
 
@@ -398,7 +405,7 @@ def main():
 
     header = (
         f'<p class="small"><strong>Auto-updated:</strong> {now.strftime("%b %d, %Y")} (UTC) • '
-        f'Source: PubMed-indexed journals (incl. JOSPT/JNPT/AJSM) • Window: past 2 years</p>'
+        f'Articles: PubMed-indexed journals (incl. JOSPT/JNPT/AJSM) • Window: past 2 years</p>'
     )
 
     cards = [header, '<div class="grid">']
@@ -419,10 +426,8 @@ def main():
             """.strip())
             continue
 
-        # Score only top N candidates to keep it fast
         candidate_pmids = ids[:SCORE_TOP_N]
 
-        # Batch fetch metadata + abstracts
         meta_map = esummary_batch(candidate_pmids)
         if SLEEP:
             time.sleep(SLEEP)
@@ -446,16 +451,19 @@ def main():
             if s > best["score"]:
                 best = {"pmid": str(pmid), "meta": meta, "abstract": abstract, "score": s}
 
-        # Require a minimum relevance score so categories don't drift
+        # Minimum relevance threshold so categories don't drift
         if not best["pmid"] or best["score"] < 18:
             cards.append(f"""
             <div class="card">
               <h2>{safe(name)}</h2>
-              <p><em>No strong match found this month within the past 2 years. (Try broadening keywords.)</em></p>
+              <p><em>No strong match found this month within the past 2 years. (If this happens often, broaden keywords.)</em></p>
             </div>
             """.strip())
         else:
             cards.append(build_section_card(name, best["pmid"], best["meta"], best["abstract"]))
+
+    # Add APTA resources (manual links only)
+    cards.append(build_apta_resources_card())
 
     cards.append("</div>")
 
