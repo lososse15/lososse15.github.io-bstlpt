@@ -20,10 +20,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Update literature.html from PubMed (past 2 years)
+      - name: Update literature.html
         env:
           NCBI_EMAIL: "youremail@email.com"          # CHANGE THIS
-          NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }} # optional
+          NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }} # optional but recommended
+          SLEEP: "0.05"
         run: |
           python scripts/update_literature_monthly.py
 
