@@ -301,7 +301,7 @@ def score_relevance(blob: str, sec: dict, journal: str) -> int:
 def structured_summary(abstract: str) -> dict:
     """
     Output:
-      - summary: easy-to-read summary of abstract (professional, clear)
+      - summary: a real, readable summary (not just copied sentences)
       - apply: brief PT practice application guidance
     """
     if not abstract:
@@ -318,32 +318,75 @@ def structured_summary(abstract: str) -> dict:
         }
 
     txt = normalize_space(abstract)
-    sents = re.split(r"(?<=[.!?])\s+", txt)
-    sents = [s.strip() for s in sents if s.strip()]
 
-    results_like = [s for s in sents if re.search(
-        r"\b(result|results|conclusion|conclude|found|significant|improv|effect|difference|odds|risk|CI|p\s*[<=>])\b",
-        s, re.I
-    )]
-
-    opener = " ".join(sents[:2]) if len(sents) >= 2 else (sents[0] if sents else txt)
-    key_findings = " ".join(results_like[:2]) if results_like else (" ".join(sents[2:4]) if len(sents) > 3 else "")
-
-    parts = [opener]
-    if key_findings:
-        parts.append(key_findings)
-
+    # Pull key numbers if present (we won't over-emphasize them)
     stats = extract_stats(txt)
-    if stats:
-        parts.append(f"Key numbers reported in the abstract include: {stats}.")
+
+    # Lightweight cueing to build a “story” summary
+    # (objective -> what they did -> what they found -> what it means)
+    objective = ""
+    methods = ""
+    findings = ""
+    takeaway = ""
+
+    # Try to use labeled abstracts if present
+    def grab(label: str) -> str:
+        m = re.search(
+            rf"{label}\s*:\s*(.*?)(?=\s*[A-Z][A-Z \-]{{2,}}\s*:|$)",
+            txt,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        return normalize_space(m.group(1)) if m else ""
+
+    objective = grab("OBJECTIVE") or grab("PURPOSE") or grab("AIM") or grab("BACKGROUND")
+    methods = grab("METHODS") or grab("DESIGN")
+    findings = grab("RESULTS")
+    takeaway = grab("CONCLUSION") or grab("CONCLUSIONS")
+
+    # If labels aren't available, use sentence heuristics
+    if not (objective or findings or takeaway):
+        sents = re.split(r"(?<=[.!?])\s+", txt)
+        sents = [s.strip() for s in sents if s.strip()]
+
+        # Objective/context = first 1–2 sentences
+        objective = " ".join(sents[:2]) if len(sents) >= 2 else (sents[0] if sents else txt)
+
+        # Findings = sentences with outcome-ish language
+        outcome_sents = [
+            s for s in sents
+            if re.search(r"\b(significant|improv|reduc|increase|difference|effect|associated|odds|risk|CI|p\s*[<=>])\b", s, re.I)
+        ]
+        findings = " ".join(outcome_sents[:2]) if outcome_sents else (" ".join(sents[2:4]) if len(sents) > 3 else "")
+
+        # Takeaway = last sentence
+        takeaway = sents[-1] if sents else ""
+
+    # Build a true summary paragraph (paraphrase style)
+    parts = []
+
+    if objective:
+        parts.append(f"This study looked at {objective[0].lower() + objective[1:] if len(objective) > 1 else objective}")
+
+    if methods:
+        parts.append(f"The authors used {methods[0].lower() + methods[1:] if len(methods) > 1 else methods}")
+
+    if findings:
+        parts.append(f"Overall, {findings[0].lower() + findings[1:] if len(findings) > 1 else findings}")
+
+    if takeaway and takeaway not in (objective, findings):
+        parts.append(f"In practical terms, {takeaway[0].lower() + takeaway[1:] if len(takeaway) > 1 else takeaway}")
 
     summary = normalize_space(" ".join(parts))
 
+    # If summary is still short, add a gentle stats line (only if present)
+    if stats:
+        summary = normalize_space(summary + f" Key numbers reported in the abstract include: {stats}.")
+
     apply = (
-        "Match the study population to your patient and translate the main intervention approach into a measurable PT plan "
-        "(dosage, frequency, intensity, and progression). Track objective outcomes relevant to the condition (e.g., pain scale, "
-        "PSFS/ODI/LEFS/QuickDASH, strength/ROM, gait speed, balance measures), educate the patient on expectations, and "
-        "adjust the program based on response, safety, and functional goals."
+        "Apply this by first confirming the population and setting match your patient (age, diagnosis, acuity, and goals). "
+        "Then translate the article’s main intervention idea into a measurable plan (dosage, frequency, intensity, and progression), "
+        "and track response using objective outcomes relevant to the condition (e.g., PSFS, ODI/LEFS/QuickDASH, strength/ROM, gait speed, "
+        "and balance measures). Reinforce adherence with clear education, progress based on tolerance, and modify for safety and comorbidities."
     )
 
     return {"summary": summary, "apply": apply}
