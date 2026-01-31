@@ -533,7 +533,7 @@ def build_section_card(section_name: str, pmid: str, meta: dict, abstract: str,
     journal = safe(meta.get("source") or meta.get("fulljournalname") or "Journal")
     pubdate = safe(meta.get("pubdate") or "Date not listed")
 
-    summ = structured_summary(abstract)
+  summ = structured_summary(abstract, section_name=section_name)
     access = build_access_buttons(pmid, meta)
     prev_list = build_previous_featured_list(prev_pmids, prev_meta_map)
 
