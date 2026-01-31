@@ -44,7 +44,7 @@ SECTIONS = [
     {
         "name": "Orthopedics",
         opic_query": (
-    f'({PT_FILTER}) AND ('
+    f'({PT_FILTER}) = (
     '("physical therapy"[tiab] OR physiotherapy[tiab] OR rehabilitation[tiab] OR "exercise therapy"[tiab]) '
     'AND (orthopedic*[tiab] OR musculoskeletal[tiab] OR exercise therapy[tiab] OR pain management[tiab] OR gait training[tiab])'
     ')'
