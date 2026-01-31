@@ -298,11 +298,12 @@ def score_relevance(blob: str, sec: dict, journal: str) -> int:
 
     return score
 
-def structured_summary(abstract: str) -> dict:
+def structured_summary(abstract: str, section_name: str = "") -> dict:
     """
     Output:
-      - summary: a real, readable summary (not just copied sentences)
-      - apply: brief PT practice application guidance
+      - summary: readable abstract summary
+      - eli5: 2–3 sentences explaining it to a 5-year-old
+      - apply: practical PT implementation guidance tailored to the topic
     """
     if not abstract:
         return {
@@ -310,24 +311,127 @@ def structured_summary(abstract: str) -> dict:
                 "No abstract was available in the PubMed record for this article. "
                 "Review the full text (if available) for methods, results, and clinical takeaways."
             ),
+            "eli5": (
+                "This paper is about helping people move and feel better. "
+                "We’d need the full paper to know exactly what they found."
+            ),
             "apply": (
-                "If relevant to your caseload, use the article’s clinical question to guide your plan of care, "
-                "select appropriate outcome measures, and apply the intervention principles (dose, frequency, progression) "
-                "while monitoring tolerance and safety."
+                "If this topic matches your caseload, review the full text when possible. "
+                "Then choose appropriate outcome measures and apply the intervention principles "
+                "(dose, frequency, progression) while monitoring tolerance and safety."
             ),
         }
 
     txt = normalize_space(abstract)
-
-    # Pull key numbers if present (we won't over-emphasize them)
     stats = extract_stats(txt)
 
-    # Lightweight cueing to build a “story” summary
-    # (objective -> what they did -> what they found -> what it means)
-    objective = ""
-    methods = ""
-    findings = ""
-    takeaway = ""
+    # Try labeled sections first
+    def grab(label: str) -> str:
+        m = re.search(
+            rf"{label}\s*:\s*(.*?)(?=\s*[A-Z][A-Z \-]{{2,}}\s*:|$)",
+            txt,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        return normalize_space(m.group(1)) if m else ""
+
+    objective = grab("OBJECTIVE") or grab("PURPOSE") or grab("AIM") or grab("BACKGROUND")
+    methods = grab("METHODS") or grab("DESIGN")
+    results = grab("RESULTS")
+    conclusion = grab("CONCLUSION") or grab("CONCLUSIONS")
+
+    # Fallback: sentence heuristics
+    if not (objective or results or conclusion):
+        sents = re.split(r"(?<=[.!?])\s+", txt)
+        sents = [s.strip() for s in sents if s.strip()]
+
+        objective = " ".join(sents[:2]) if len(sents) >= 2 else (sents[0] if sents else txt)
+
+        outcome_sents = [
+            s for s in sents
+            if re.search(r"\b(significant|improv|reduc|increase|difference|effect|associated|odds|risk|CI|p\s*[<=>])\b", s, re.I)
+        ]
+        results = " ".join(outcome_sents[:2]) if outcome_sents else (" ".join(sents[2:4]) if len(sents) > 3 else "")
+
+        conclusion = sents[-1] if sents else ""
+
+    # Build a readable summary (paraphrase style)
+    parts = []
+
+    if objective:
+        parts.append(f"This article examined {objective[0].lower() + objective[1:] if len(objective) > 1 else objective}")
+
+    if methods:
+        parts.append(f"The researchers used {methods[0].lower() + methods[1:] if len(methods) > 1 else methods}")
+
+    if results:
+        parts.append(f"They found that {results[0].lower() + results[1:] if len(results) > 1 else results}")
+
+    if conclusion and conclusion not in (objective, results):
+        parts.append(f"Overall, {conclusion[0].lower() + conclusion[1:] if len(conclusion) > 1 else conclusion}")
+
+    summary = normalize_space(" ".join(parts))
+    if stats:
+        summary = normalize_space(summary + f" Key numbers reported in the abstract include: {stats}.")
+
+    # ELI5 (2–3 sentences). Keep it simple and friendly.
+    eli5 = (
+        "Scientists wanted to learn what helps people move better and feel less hurt. "
+        "They tried one approach and watched what happened. "
+        "The results help therapists choose exercises and training that can help people do everyday things more easily."
+    )
+
+    # PT-specific application: tailor by section + key terms in abstract
+    t = txt.lower()
+    sec = (section_name or "").lower()
+
+    # Defaults (good for any PT paper)
+    apply_lines = [
+        "Check that the study population matches your patient (age, diagnosis, stage of recovery, and goals).",
+        "Translate the main intervention into a plan you can deliver: dosage (sets/reps/time), frequency, intensity, and progression rules.",
+        "Measure change using outcomes that fit the condition (pain scale + function measure + a performance test when appropriate).",
+        "Educate the patient on why you’re using the approach, how it should feel, and what warning signs mean you should modify.",
+    ]
+
+    # Orthopedics hints
+    if "orthopedic" in sec or any(k in t for k in ["low back", "lumbar", "shoulder", "rotator cuff", "osteoarthritis", "knee", "hip", "postoperative", "post-op"]):
+        apply_lines.append(
+            "For MSK care, use symptom-guided loading: start with tolerable ranges and gradually increase load/volume while monitoring irritability (24-hr response)."
+        )
+        apply_lines.append(
+            "Pair the main treatment with patient-specific functional practice (sit-to-stand, stairs, lifting, reaching) and reassess weekly for progression."
+        )
+
+    # Sports hints
+    if "sports" in sec or any(k in t for k in ["acl", "return to sport", "athlete", "running", "tendinopathy", "achilles", "plyometric", "hop"]):
+        apply_lines.append(
+            "For sport rehab, convert findings into criteria-based progressions (strength symmetry, hop/landing quality, pain response, workload tolerance)."
+        )
+        apply_lines.append(
+            "Build a return-to-sport plan: graded exposure to sport-specific drills, monitor training load, and use objective tests to guide clearance."
+        )
+
+    # Geriatrics hints
+    if "geri" in sec or any(k in t for k in ["older", "frailty", "falls", "balance", "sarcopenia", "hip fracture"]):
+        apply_lines.append(
+            "For older adults, prioritize fall-risk reduction: progressive strength + balance training 2–3x/week, plus walking practice and home safety education."
+        )
+        apply_lines.append(
+            "Choose outcomes like gait speed, TUG, 5x sit-to-stand, and a balance measure, and link improvements directly to ADLs and confidence."
+        )
+
+    # Neuro hints
+    if "neuro" in sec or any(k in t for k in ["stroke", "parkinson", "vestibular", "gait", "walking", "dizziness", "balance"]):
+        apply_lines.append(
+            "For neuro rehab, emphasize task-specific, high-repetition practice (walking, transfers, balance tasks) with appropriate cueing and safety setup."
+        )
+        apply_lines.append(
+            "Use objective measures (10MWT, 6MWT, TUG, MiniBEST/BERG, or symptom scales for vestibular) to dose and progress treatment."
+        )
+
+    apply = " ".join(apply_lines)
+
+    return {"summary": summary, "eli5": eli5, "apply": apply}
+
 
     # Try to use labeled abstracts if present
     def grab(label: str) -> str:
