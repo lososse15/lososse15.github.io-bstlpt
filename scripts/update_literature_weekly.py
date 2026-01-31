@@ -17,7 +17,9 @@ LITERATURE_FILE = "literature.html"
 # IMPORTANT: history file should ALSO be in repo root (not inside scripts/)
 HISTORY_FILE = "literature_history.json"
 MAX_HISTORY = 120  # keep last 120 PMIDs per category to avoid repeats
-
+PT_FILTER = (
+    '("Physical Therapy Modalities"[MeSH Terms] OR "Physical Therapists"[MeSH Terms] OR '
+    '"Rehabilitation"[MeSH Major Topic] OR "Exercise Therapy"[MeSH Terms])'
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 NCBI_EMAIL = os.environ.get("NCBI_EMAIL", "example@example.com")
 NCBI_API_KEY = os.environ.get("NCBI_API_KEY")  # optional but recommended
@@ -41,12 +43,11 @@ APTA_CPG_HUB_URL = "https://www.apta.org/patient-care/evidence-based-practice-re
 SECTIONS = [
     {
         "name": "Orthopedics",
-        "topic_query": (
-            '("physical therapy"[tiab] OR physiotherapy[tiab] OR rehabilitation[tiab] OR "exercise therapy"[tiab]) '
-            'AND (orthopedic*[tiab] OR musculoskeletal[tiab] OR "low back pain"[tiab] OR lumbar[tiab] OR '
-            'shoulder[tiab] OR "rotator cuff"[tiab] OR knee[tiab] OR hip[tiab] OR osteoarthritis[tiab] OR '
-            '"post-operative"[tiab] OR postoperative[tiab] OR post-op[tiab] OR "total knee"[tiab] OR "total hip"[tiab]) '
-            'NOT (thrombectomy[tiab] OR endovascular[tiab] OR catheter[tiab] OR hospice[tiab] OR audiology[tiab] OR hearing[tiab])'
+        opic_query": (
+    f'({PT_FILTER}) AND ('
+    '("physical therapy"[tiab] OR physiotherapy[tiab] OR rehabilitation[tiab] OR "exercise therapy"[tiab]) '
+    'AND (orthopedic*[tiab] OR musculoskeletal[tiab] OR exercise therapy[tiab] OR pain management[tiab] OR gait training[tiab])'
+    ')'
         ),
         "preferred_journals": ["J Orthop Sports Phys Ther", "Phys Ther"],
         "must_terms": ["physical therapy", "physiotherapy", "rehabilitation", "exercise"],
@@ -78,12 +79,15 @@ SECTIONS = [
         "ban_terms": ["thrombectomy", "endovascular", "catheter", "hospice", "cost", "disposition"],
     },
     {
-        "name": "Geriatrics",
-        "topic_query": (
-            '("physical therapy"[tiab] OR physiotherapy[tiab] OR rehabilitation[tiab] OR exercise[tiab]) '
-            'AND (geriatric*[tiab] OR "older adult"[tiab] OR older[tiab] OR frailty[tiab] OR '
+        "name": "Geriatrics",'
+        
+            Topic_query": (
+    f'({PT_FILTER}) AND ('
+    '("physical therapy"[tiab] OR physiotherapy[tiab] OR rehabilitation[tiab] OR "exercise therapy"[tiab]) '
+    'AND (orthopedic*[tiab] OR musculoskeletal[tiab] OR "older adult"[tiab] OR older[tiab] OR frailty[tiab] OR '
             'falls[tiab] OR fall[tiab] OR balance[tiab] OR sarcopenia[tiab] OR "hip fracture"[tiab] OR osteoporosis[tiab]) '
-            'NOT (audiology[tiab] OR hearing[tiab] OR cochlear[tiab] OR thrombectomy[tiab] OR endovascular[tiab])'
+            'NOT (audiology[tiab] OR hearing[tiab] OR cochlear[tiab] OR thrombectomy[tiab] OR endovascular[tiab])' )'
+    ')'
         ),
         "preferred_journals": ["J Geriatr Phys Ther", "Phys Ther", "J Orthop Sports Phys Ther"],
         "must_terms": ["older", "falls", "balance", "frailty", "sarcopenia", "hip fracture"],
@@ -115,6 +119,17 @@ SECTIONS = [
 # -----------------------------
 # HTTP helpers
 # -----------------------------
+PT_REQUIRED_TERMS = [
+    "physical therapy", "physiotherapy", "physical therapist",
+    "rehabilitation", "exercise therapy", "therapeutic exercise",
+    "gait training", "balance training"
+]
+
+NON_PT_RED_FLAGS = [
+    "thrombectomy", "catheter", "endovascular", "stent",
+    "hospice", "cost analysis", "disposition",
+    "audiology", "hearing", "cochlear"
+]
 def http_get(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": "BSTL-Literature-Updater/weekly/3.0"})
     with urllib.request.urlopen(req, timeout=40) as resp:
@@ -243,7 +258,15 @@ def get_article_id(meta: dict, idtype: str) -> str:
     return ""
 
 def score_relevance(blob: str, sec: dict, journal: str) -> int:
-    t = (blob or "").lower()
+    t = (blob or "").lower()    # Hard reject if it looks clearly not PT-related
+    for bad in NON_PT_RED_FLAGS:
+        if bad in t:
+            return -999
+
+    # Require at least ONE strong PT signal in title/abstract/journal blob
+    if not any(term in t for term in PT_REQUIRED_TERMS):
+        return -200
+
     j = (journal or "").lower()
 
     for w in sec["ban_terms"]:
