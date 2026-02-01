@@ -52,7 +52,7 @@ NON_PT_RED_FLAGS = [
 ]
 
 # -----------------------------
-# Categories (PT-specific topic examples)
+# Categories (PT-practice topics)
 # -----------------------------
 SECTIONS = [
     {
@@ -60,9 +60,10 @@ SECTIONS = [
         "topic_query": (
             f'({PT_FILTER}) AND ('
             '("physical therapy"[tiab] OR physiotherapy[tiab] OR rehabilitation[tiab] OR "exercise therapy"[tiab]) '
-            'AND ("low back pain"[tiab] OR lumbar[tiab] OR shoulder[tiab] OR "rotator cuff"[tiab] OR '
-            'knee[tiab] OR hip[tiab] OR osteoarthritis[tiab] OR "post-operative"[tiab] OR postoperative[tiab] OR post-op[tiab] OR '
-            '"total knee"[tiab] OR "total hip"[tiab]) '
+            'AND (("low back pain"[tiab] OR lumbar[tiab]) OR '
+            '(shoulder[tiab] OR "rotator cuff"[tiab]) OR '
+            '("knee osteoarthritis"[tiab] OR osteoarthritis[tiab] OR "hip osteoarthritis"[tiab]) OR '
+            '(postoperative[tiab] OR "post-operative"[tiab] OR post-op[tiab] OR "total knee"[tiab] OR "total hip"[tiab])) '
             'NOT (thrombectomy[tiab] OR endovascular[tiab] OR catheter[tiab] OR audiology[tiab] OR hearing[tiab] OR hospice[tiab])'
             ')'
         ),
@@ -90,7 +91,7 @@ SECTIONS = [
         "preferred_journals": ["Am J Sports Med", "J Orthop Sports Phys Ther", "Br J Sports Med", "Sports Health"],
         "must_terms": ["rehabilitation", "return to sport", "athlete", "acl", "tendinopathy", "running"],
         "boost_terms": [
-            "reinjury", "plyometric", "hop test",
+            "reinjury", "plyometric", "hop test", "landing",
             "eccentric", "achilles", "patellar",
             "load management", "strength", "performance"
         ],
@@ -138,7 +139,7 @@ SECTIONS = [
 # HTTP helpers
 # -----------------------------
 def http_get(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": "BSTL-Literature-Updater/weekly/4.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "BSTL-Literature-Updater/weekly/5.0"})
     with urllib.request.urlopen(req, timeout=40) as resp:
         return resp.read().decode("utf-8", errors="replace")
 
@@ -173,7 +174,7 @@ def esummary_batch(pmids: list[str]) -> dict[str, dict]:
     url = f"{EUTILS}/esummary.fcgi?{build_params(params)}"
     data = json.loads(http_get(url))
     result = data.get("result", {})
-    out = {}
+    out: dict[str, dict] = {}
     for uid in result.get("uids", []):
         out[str(uid)] = result.get(uid, {})
     return out
@@ -185,7 +186,7 @@ def efetch_abstracts(pmids: list[str]) -> dict[str, str]:
     url = f"{EUTILS}/efetch.fcgi?{build_params(params)}"
     xml_text = http_get(url)
 
-    abstracts = {}
+    abstracts: dict[str, str] = {}
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError:
@@ -255,6 +256,63 @@ def extract_stats(text: str) -> str:
             out.append(x)
     return ", ".join(out[:10])
 
+def extract_dosage(text: str) -> str:
+    """
+    Extracts exercise dosage/frequency/time details ONLY if present in the abstract text.
+    Returns a short human-readable string or "" if nothing found.
+    """
+    if not text:
+        return ""
+    t = normalize_space(text)
+
+    patterns = [
+        # frequency
+        r"\b\d+\s*(x|×)\s*(/|per)\s*week\b",
+        r"\b\d+\s*times\s*(a|per)\s*week\b",
+        r"\b\d+\s*sessions?\s*(/|per)\s*week\b",
+        r"\b(once|twice)\s*(a|per)\s*week\b",
+
+        # session length
+        r"\b\d+\s*(to|-)\s*\d+\s*min(ute)?s?\b",
+        r"\b\d+\s*min(ute)?s?\b",
+        r"\b\d+\s*(to|-)\s*\d+\s*hours?\b",
+        r"\b\d+\s*hours?\b",
+
+        # program duration
+        r"\b\d+\s*(to|-)\s*\d+\s*weeks?\b",
+        r"\b\d+\s*weeks?\b",
+        r"\b\d+\s*(to|-)\s*\d+\s*months?\b",
+        r"\b\d+\s*months?\b",
+
+        # sets/reps
+        r"\b\d+\s*sets?\s*of\s*\d+\s*reps?\b",
+        r"\b\d+\s*(sets?|set)\b",
+        r"\b\d+\s*(reps?|repetitions?)\b",
+        r"\b\d+\s*(to|-)\s*\d+\s*reps?\b",
+
+        # intensity
+        r"\b\d+\s*RM\b",
+        r"\b\d+\s*%\s*1RM\b",
+        r"\bRPE\s*\d+(\.\d+)?\b",
+        r"\bBorg\s*\d+(\.\d+)?\b",
+    ]
+
+    hits = []
+    for pat in patterns:
+        for m in re.finditer(pat, t, flags=re.IGNORECASE):
+            hits.append(m.group(0))
+
+    seen = set()
+    out = []
+    for h in hits:
+        key = h.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(h)
+
+    return ", ".join(out[:10])
+
 def get_article_id(meta: dict, idtype: str) -> str:
     for item in meta.get("articleids", []) or []:
         if (item.get("idtype") or "").lower() == idtype.lower():
@@ -264,12 +322,12 @@ def get_article_id(meta: dict, idtype: str) -> str:
 def score_relevance(blob: str, sec: dict, journal: str) -> int:
     t = (blob or "").lower()
 
-    # Hard reject if it looks clearly not PT-related
+    # Hard reject: clearly not PT-related
     for bad in NON_PT_RED_FLAGS:
         if bad in t:
             return -999
 
-    # Require at least one strong PT signal
+    # Require at least one PT signal
     if not any(term in t for term in PT_REQUIRED_TERMS):
         return -200
 
@@ -281,18 +339,22 @@ def score_relevance(blob: str, sec: dict, journal: str) -> int:
 
     score = 0
 
+    # Preferred journals boost
     for pj in sec["preferred_journals"]:
         if pj.lower() in j:
             score += 25
 
+    # Must terms
     for w in sec["must_terms"]:
         if w.lower() in t:
             score += 8
 
+    # Boost terms
     for w in sec["boost_terms"]:
         if w.lower() in t:
             score += 3
 
+    # Study type boost
     if any(k in t for k in ["randomized", "trial", "systematic review", "meta-analysis", "guideline", "cohort"]):
         score += 4
 
@@ -301,9 +363,9 @@ def score_relevance(blob: str, sec: dict, journal: str) -> int:
 def structured_summary(abstract: str, section_name: str = "") -> dict:
     """
     Output:
-      - summary: readable abstract summary
+      - summary: readable abstract summary (not just copied sentences)
       - eli5: 2–3 sentences explaining it to a 5-year-old
-      - apply: practical PT implementation guidance tailored to the topic
+      - apply: practical PT implementation guidance + dosage if stated in abstract
     """
     if not abstract:
         return {
@@ -317,7 +379,7 @@ def structured_summary(abstract: str, section_name: str = "") -> dict:
             ),
             "apply": (
                 "If this topic matches your caseload, review the full text when possible. "
-                "Then choose appropriate outcome measures and apply the intervention principles "
+                "Then select appropriate outcome measures and apply the intervention principles "
                 "(dose, frequency, progression) while monitoring tolerance and safety."
             ),
         }
@@ -326,253 +388,92 @@ def structured_summary(abstract: str, section_name: str = "") -> dict:
     stats = extract_stats(txt)
     dosage = extract_dosage(txt)
 
-   def structured_summary(abstract: str, section_name: str = "") -> dict:
-    """
-    Output:
-    ...
-    Extracts exercise dosage/frequency/time details ONLY if present in the abstract text.
-    Returns a short human-readable string or "" if nothing found.
-    """
-    if not text:
-        return ""
+    # Sentence split
+    sents = re.split(r"(?<=[.!?])\s+", txt)
+    sents = [s.strip() for s in sents if s.strip()]
 
-    t = normalize_space(text)
+    # Build a summary in a "real summary" voice:
+    # - context/purpose from first 1–2 sentences
+    # - add key findings sentence(s) if present
+    opener = " ".join(sents[:2]) if len(sents) >= 2 else (sents[0] if sents else txt)
 
-    patterns = [
-        # frequency
-        r"\b\d+\s*(x|×)\s*(/|per)\s*week\b",                 # 2x/week, 3× per week
-        r"\b\d+\s*times\s*(a|per)\s*week\b",                # 3 times per week
-        r"\b\d+\s*sessions?\s*(/|per)\s*week\b",            # 2 sessions/week
-        r"\b(once|twice)\s*(a|per)\s*week\b",               # once per week, twice per week
-
-        # session length
-        r"\b\d+\s*(to|-)\s*\d+\s*min(ute)?s?\b",            # 20-30 min
-        r"\b\d+\s*min(ute)?s?\b",                           # 30 min
-        r"\b\d+\s*(to|-)\s*\d+\s*hours?\b",                 # 1-2 hours
-        r"\b\d+\s*hours?\b",                                # 1 hour
-
-        # program duration
-        r"\b\d+\s*(to|-)\s*\d+\s*weeks?\b",                 # 6-12 weeks
-        r"\b\d+\s*weeks?\b",                                # 8 weeks
-        r"\b\d+\s*(to|-)\s*\d+\s*months?\b",                # 3-6 months
-        r"\b\d+\s*months?\b",                               # 6 months
-
-        # sets/reps
-        r"\b\d+\s*(sets?|set)\b",                           # 3 sets
-        r"\b\d+\s*(reps?|repetitions?)\b",                  # 10 reps
-        r"\b\d+\s*sets?\s*of\s*\d+\s*reps?\b",              # 3 sets of 10 reps
-        r"\b\d+\s*(to|-)\s*\d+\s*reps?\b",                  # 8-12 reps
-
-        # intensity
-        r"\b\d+\s*RM\b",                                    # 10RM
-        r"\b\d+\s*%\s*1RM\b",                               # 70% 1RM
-        r"\bRPE\s*\d+(\.\d+)?\b",                            # RPE 7
-        r"\bBorg\s*\d+(\.\d+)?\b",                           # Borg 13
-
-        # walking / steps (common in rehab)
-        r"\b\d+\s*(to|-)\s*\d+\s*steps?\b",
-        r"\b\d+\s*steps?\b",
+    key_findings = ""
+    findings_sents = [
+        s for s in sents
+        if re.search(r"\b(significant|improv|reduc|increase|difference|effect|associated|odds|risk|CI|p\s*[<=>])\b", s, re.I)
     ]
+    if findings_sents:
+        key_findings = " ".join(findings_sents[:2])
+    elif len(sents) > 2:
+        key_findings = sents[-1]
 
-    hits = []
-    for pat in patterns:
-        for m in re.finditer(pat, t, flags=re.IGNORECASE):
-            hits.append(m.group(0))
-
-    # Deduplicate while preserving order
-    seen = set()
-    out = []
-    for h in hits:
-        key = h.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(h)
-
-    # Limit so it doesn't get noisy
-    return ", ".join(out[:10])
-
-
-    # Try labeled sections first
-    def grab(label: str) -> str:
-        m = re.search(
-            rf"{label}\s*:\s*(.*?)(?=\s*[A-Z][A-Z \-]{{2,}}\s*:|$)",
-            txt,
-            flags=re.IGNORECASE | re.DOTALL,
-        )
-        return normalize_space(m.group(1)) if m else ""
-
-    objective = grab("OBJECTIVE") or grab("PURPOSE") or grab("AIM") or grab("BACKGROUND")
-    methods = grab("METHODS") or grab("DESIGN")
-    results = grab("RESULTS")
-    conclusion = grab("CONCLUSION") or grab("CONCLUSIONS")
-
-    # Fallback: sentence heuristics
-    if not (objective or results or conclusion):
-        sents = re.split(r"(?<=[.!?])\s+", txt)
-        sents = [s.strip() for s in sents if s.strip()]
-
-        objective = " ".join(sents[:2]) if len(sents) >= 2 else (sents[0] if sents else txt)
-
-        outcome_sents = [
-            s for s in sents
-            if re.search(r"\b(significant|improv|reduc|increase|difference|effect|associated|odds|risk|CI|p\s*[<=>])\b", s, re.I)
-        ]
-        results = " ".join(outcome_sents[:2]) if outcome_sents else (" ".join(sents[2:4]) if len(sents) > 3 else "")
-
-        conclusion = sents[-1] if sents else ""
-
-    # Build a readable summary (paraphrase style)
-    parts = []
-
-    if objective:
-        parts.append(f"This article examined {objective[0].lower() + objective[1:] if len(objective) > 1 else objective}")
-
-    if methods:
-        parts.append(f"The researchers used {methods[0].lower() + methods[1:] if len(methods) > 1 else methods}")
-
-    if results:
-        parts.append(f"They found that {results[0].lower() + results[1:] if len(results) > 1 else results}")
-
-    if conclusion and conclusion not in (objective, results):
-        parts.append(f"Overall, {conclusion[0].lower() + conclusion[1:] if len(conclusion) > 1 else conclusion}")
-
-    summary = normalize_space(" ".join(parts))
+    summary = normalize_space(f"{opener} {key_findings}".strip())
     if stats:
         summary = normalize_space(summary + f" Key numbers reported in the abstract include: {stats}.")
 
-    # ELI5 (2–3 sentences). Keep it simple and friendly.
+    # ELI5 (2–3 sentences)
     eli5 = (
-        "Scientists wanted to learn what helps people move better and feel less hurt. "
-        "They tried one approach and watched what happened. "
-        "The results help therapists choose exercises and training that can help people do everyday things more easily."
+        "They wanted to learn what kind of practice helps people move better. "
+        "They tried a plan and checked if it helped. "
+        "The results can help therapists choose better exercises for people."
     )
 
-    # PT-specific application: tailor by section + key terms in abstract
-    t = txt.lower()
+    # Practical application guidance (PT)
+    apply_lines = [
+        "Match the study population to your patient (diagnosis, age, stage of recovery, and goals).",
+    ]
+    if dosage:
+        apply_lines.append(f"Study-reported dosage from the abstract: {dosage}.")
+    apply_lines.extend([
+        "Translate the main intervention into a measurable plan (frequency, intensity, time/sets/reps, and progression).",
+        "Use objective measures to track change (pain + function + a performance test when appropriate).",
+        "Educate on expectations and adjust based on symptom response, safety, and functional goals.",
+    ])
+
     sec = (section_name or "").lower()
 
-    # Defaults (good for any PT paper)
-    apply_lines = [
-        "Check that the study population matches your patient (age, diagnosis, stage of recovery, and goals).",
-        "Translate the main intervention into a plan you can deliver: dosage (sets/reps/time), frequency, intensity, and progression rules.",
-        "Measure change using outcomes that fit the condition (pain scale + function measure + a performance test when appropriate).",
-        "Educate the patient on why you’re using the approach, how it should feel, and what warning signs mean you should modify.",
-    ]
-if dosage:
-    apply_lines.insert(
-        1,
-        f"Study-reported dosage (from the abstract): {dosage}.")
-
-    # Orthopedics hints
-    if "orthopedic" in sec or any(k in t for k in ["low back", "lumbar", "shoulder", "rotator cuff", "osteoarthritis", "knee", "hip", "postoperative", "post-op"]):
+    if "orthoped" in sec:
         apply_lines.append(
-            "For MSK care, use symptom-guided loading: start with tolerable ranges and gradually increase load/volume while monitoring irritability (24-hr response)."
+            "For MSK care, use symptom-guided loading: progress volume/load while monitoring the 24-hour response and functional tolerance."
         )
         apply_lines.append(
-            "Pair the main treatment with patient-specific functional practice (sit-to-stand, stairs, lifting, reaching) and reassess weekly for progression."
+            "Pair the approach with task practice relevant to goals (stairs, sit-to-stand, lifting, reaching) and reassess weekly."
         )
 
-    # Sports hints
-    if "sports" in sec or any(k in t for k in ["acl", "return to sport", "athlete", "running", "tendinopathy", "achilles", "plyometric", "hop"]):
+    if "sports" in sec:
         apply_lines.append(
-            "For sport rehab, convert findings into criteria-based progressions (strength symmetry, hop/landing quality, pain response, workload tolerance)."
+            "For sport rehab, integrate this into criteria-based progression (strength symmetry, hop/landing quality, workload tolerance) before return-to-sport."
         )
         apply_lines.append(
-            "Build a return-to-sport plan: graded exposure to sport-specific drills, monitor training load, and use objective tests to guide clearance."
-        )
-
-    # Geriatrics hints
-    if "geri" in sec or any(k in t for k in ["older", "frailty", "falls", "balance", "sarcopenia", "hip fracture"]):
-        apply_lines.append(
-            "For older adults, prioritize fall-risk reduction: progressive strength + balance training 2–3x/week, plus walking practice and home safety education."
-        )
-        apply_lines.append(
-            "Choose outcomes like gait speed, TUG, 5x sit-to-stand, and a balance measure, and link improvements directly to ADLs and confidence."
+            "Use graded exposure to sport-specific drills and monitor training load to reduce flare-ups and reinjury risk."
         )
 
-    # Neuro hints
-    if "neuro" in sec or any(k in t for k in ["stroke", "parkinson", "vestibular", "gait", "walking", "dizziness", "balance"]):
+    if "geri" in sec:
+        apply_lines.append(
+            "For older adults, prioritize fall-risk reduction: progressive strengthening + balance training (static → dynamic → dual-task) with home safety education."
+        )
+        apply_lines.append(
+            "Tie outcomes to independence (gait speed, TUG, sit-to-stand, balance measures) and build confidence with safe repetitions."
+        )
+
+    if "neuro" in sec:
         apply_lines.append(
             "For neuro rehab, emphasize task-specific, high-repetition practice (walking, transfers, balance tasks) with appropriate cueing and safety setup."
         )
         apply_lines.append(
-            "Use objective measures (10MWT, 6MWT, TUG, MiniBEST/BERG, or symptom scales for vestibular) to dose and progress treatment."
+            "Progress difficulty by changing speed, environment, and cognitive load while monitoring fatigue and safety."
         )
 
     apply = " ".join(apply_lines)
 
     return {"summary": summary, "eli5": eli5, "apply": apply}
 
-
-    # Try to use labeled abstracts if present
-    def grab(label: str) -> str:
-        m = re.search(
-            rf"{label}\s*:\s*(.*?)(?=\s*[A-Z][A-Z \-]{{2,}}\s*:|$)",
-            txt,
-            flags=re.IGNORECASE | re.DOTALL,
-        )
-        return normalize_space(m.group(1)) if m else ""
-
-    objective = grab("OBJECTIVE") or grab("PURPOSE") or grab("AIM") or grab("BACKGROUND")
-    methods = grab("METHODS") or grab("DESIGN")
-    findings = grab("RESULTS")
-    takeaway = grab("CONCLUSION") or grab("CONCLUSIONS")
-
-    # If labels aren't available, use sentence heuristics
-    if not (objective or findings or takeaway):
-        sents = re.split(r"(?<=[.!?])\s+", txt)
-        sents = [s.strip() for s in sents if s.strip()]
-
-        # Objective/context = first 1–2 sentences
-        objective = " ".join(sents[:2]) if len(sents) >= 2 else (sents[0] if sents else txt)
-
-        # Findings = sentences with outcome-ish language
-        outcome_sents = [
-            s for s in sents
-            if re.search(r"\b(significant|improv|reduc|increase|difference|effect|associated|odds|risk|CI|p\s*[<=>])\b", s, re.I)
-        ]
-        findings = " ".join(outcome_sents[:2]) if outcome_sents else (" ".join(sents[2:4]) if len(sents) > 3 else "")
-
-        # Takeaway = last sentence
-        takeaway = sents[-1] if sents else ""
-
-    # Build a true summary paragraph (paraphrase style)
-    parts = []
-
-    if objective:
-        parts.append(f"This study looked at {objective[0].lower() + objective[1:] if len(objective) > 1 else objective}")
-
-    if methods:
-        parts.append(f"The authors used {methods[0].lower() + methods[1:] if len(methods) > 1 else methods}")
-
-    if findings:
-        parts.append(f"Overall, {findings[0].lower() + findings[1:] if len(findings) > 1 else findings}")
-
-    if takeaway and takeaway not in (objective, findings):
-        parts.append(f"In practical terms, {takeaway[0].lower() + takeaway[1:] if len(takeaway) > 1 else takeaway}")
-
-    summary = normalize_space(" ".join(parts))
-
-    # If summary is still short, add a gentle stats line (only if present)
-    if stats:
-        summary = normalize_space(summary + f" Key numbers reported in the abstract include: {stats}.")
-
-    apply = (
-        "Apply this by first confirming the population and setting match your patient (age, diagnosis, acuity, and goals). "
-        "Then translate the article’s main intervention idea into a measurable plan (dosage, frequency, intensity, and progression), "
-        "and track response using objective outcomes relevant to the condition (e.g., PSFS, ODI/LEFS/QuickDASH, strength/ROM, gait speed, "
-        "and balance measures). Reinforce adherence with clear education, progress based on tolerance, and modify for safety and comorbidities."
-    )
-
-    return {"summary": summary, "apply": apply}
-
 # -----------------------------
 # HTML building blocks
 # -----------------------------
 def build_access_buttons(pmid: str, meta: dict) -> str:
     doi = get_article_id(meta, "doi")
-    pmcid = get_article_id(meta, "pmcid")  # if in PubMed Central
+    pmcid = get_article_id(meta, "pmcid")
 
     btns = [
         f'<a class="pill" href="{pubmed_link(pmid)}" target="_blank" rel="noopener noreferrer">PubMed</a>'
@@ -596,16 +497,21 @@ def build_previous_featured_list(prev_pmids: list[str], prev_meta_map: dict[str,
             f'<li><a href="{pubmed_link(pmid)}" target="_blank" rel="noopener noreferrer">{safe(title)}</a> '
             f'<span class="small">(PMID: {safe(str(pmid))})</span></li>'
         )
-
     return f'<ul class="list">{"".join(items)}</ul>'
 
-def build_section_card(section_name: str, pmid: str, meta: dict, abstract: str,
-                       prev_pmids: list[str], prev_meta_map: dict[str, dict]) -> str:
+def build_section_card(
+    section_name: str,
+    pmid: str,
+    meta: dict,
+    abstract: str,
+    prev_pmids: list[str],
+    prev_meta_map: dict[str, dict]
+) -> str:
     title = safe((meta.get("title") or "").rstrip("."))
     journal = safe(meta.get("source") or meta.get("fulljournalname") or "Journal")
     pubdate = safe(meta.get("pubdate") or "Date not listed")
 
- summ = structured_summary(abstract, section_name=section_name)
+    summ = structured_summary(abstract, section_name=section_name)
     access = build_access_buttons(pmid, meta)
     prev_list = build_previous_featured_list(prev_pmids, prev_meta_map)
 
@@ -616,9 +522,8 @@ def build_section_card(section_name: str, pmid: str, meta: dict, abstract: str,
       <p class="small">{journal} • {pubdate} • PMID: {safe(pmid)}</p>
 
       <p><strong>Summary:</strong> {safe(summ["summary"])}</p>
-<p><strong>Explain like I’m 5:</strong> {safe(summ["eli5"])}</p>
-<p><strong>How to apply:</strong> {safe(summ["apply"])}</p>
-
+      <p><strong>Explain like I’m 5:</strong> {safe(summ["eli5"])}</p>
+      <p><strong>How to apply:</strong> {safe(summ["apply"])}</p>
 
       <p><strong>Access full article:</strong></p>
       {access}
@@ -702,7 +607,7 @@ def main():
         save_history(init)
         history = init
 
-    chosen = {}  # section -> dict(pmid, meta, abstract, score)
+    chosen: dict[str, dict] = {}
     for sec in SECTIONS:
         name = sec["name"]
 
@@ -716,8 +621,7 @@ def main():
 
         used = set(history.get(name, []))
         filtered = [str(p) for p in ids if str(p) not in used]
-
-        candidate_pmids = (filtered[:SCORE_TOP_N] if filtered else [str(p) for p in ids[:SCORE_TOP_N]])
+        candidate_pmids = filtered[:SCORE_TOP_N] if filtered else [str(p) for p in ids[:SCORE_TOP_N]]
 
         meta_map = esummary_batch(candidate_pmids)
         if SLEEP:
@@ -734,22 +638,21 @@ def main():
             title = meta.get("title", "")
             journal = meta.get("source", "") or meta.get("fulljournalname", "")
             blob = f"{title} {journal} {abstract}"
-
             s = score_relevance(blob, sec, journal)
             if s > best["score"]:
                 best = {"pmid": str(pmid), "meta": meta, "abstract": abstract, "score": s}
 
         chosen[name] = best
 
-        # Save PMID to history only if it's a strong match
         if best["pmid"] and best["score"] >= 18:
             history.setdefault(name, [])
             history[name].insert(0, best["pmid"])
             history[name] = history[name][:MAX_HISTORY]
 
-    # Previous featured metas (titles) in one batch
-    prev_pmids_all = []
-    prev_pmids_by_section = {}
+    # Previous featured metas (titles)
+    prev_pmids_all: list[str] = []
+    prev_pmids_by_section: dict[str, list[str]] = {}
+
     for sec in SECTIONS:
         name = sec["name"]
         prev = history.get(name, [])[1:6]  # last 5 excluding newest
@@ -777,18 +680,18 @@ def main():
             <div class="card">
               <h2>{safe(name)}</h2>
               <p><em>No strong PT-focused match found this week within the past 2 years.</em></p>
-              <p class="small">This can happen if recent results don’t match the PT/rehab filters.</p>
+              <p class="small">This can happen when recent articles don’t match the PT/rehab filters or your topic constraints.</p>
             </div>
             """.strip())
         else:
             cards.append(
                 build_section_card(
-                    name,
-                    best["pmid"],
-                    best["meta"],
-                    best["abstract"],
-                    prev_pmids_by_section.get(name, []),
-                    prev_meta_map
+                    section_name=name,
+                    pmid=best["pmid"],
+                    meta=best["meta"],
+                    abstract=best["abstract"],
+                    prev_pmids=prev_pmids_by_section.get(name, []),
+                    prev_meta_map=prev_meta_map
                 )
             )
 
@@ -801,4 +704,10 @@ def main():
     print("Updated:", changed)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        import traceback
+        print("\n--- LITERATURE UPDATER FAILED ---")
+        traceback.print_exc()
+        raise
