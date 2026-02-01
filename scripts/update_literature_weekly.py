@@ -324,6 +324,8 @@ def structured_summary(abstract: str, section_name: str = "") -> dict:
 
     txt = normalize_space(abstract)
     stats = extract_stats(txt)
+    dosage = extract_dosage(txt)
+
     def extract_dosage(text: str) -> str:
     """
     Extracts exercise dosage/frequency/time details ONLY if present in the abstract text.
@@ -455,6 +457,10 @@ def structured_summary(abstract: str, section_name: str = "") -> dict:
         "Measure change using outcomes that fit the condition (pain scale + function measure + a performance test when appropriate).",
         "Educate the patient on why you’re using the approach, how it should feel, and what warning signs mean you should modify.",
     ]
+if dosage:
+    apply_lines.insert(
+        1,
+        f"Study-reported dosage (from the abstract): {dosage}.")
 
     # Orthopedics hints
     if "orthopedic" in sec or any(k in t for k in ["low back", "lumbar", "shoulder", "rotator cuff", "osteoarthritis", "knee", "hip", "postoperative", "post-op"]):
