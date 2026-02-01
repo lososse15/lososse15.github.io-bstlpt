@@ -324,6 +324,70 @@ def structured_summary(abstract: str, section_name: str = "") -> dict:
 
     txt = normalize_space(abstract)
     stats = extract_stats(txt)
+    def extract_dosage(text: str) -> str:
+    """
+    Extracts exercise dosage/frequency/time details ONLY if present in the abstract text.
+    Returns a short human-readable string or "" if nothing found.
+    """
+    if not text:
+        return ""
+
+    t = normalize_space(text)
+
+    patterns = [
+        # frequency
+        r"\b\d+\s*(x|×)\s*(/|per)\s*week\b",                 # 2x/week, 3× per week
+        r"\b\d+\s*times\s*(a|per)\s*week\b",                # 3 times per week
+        r"\b\d+\s*sessions?\s*(/|per)\s*week\b",            # 2 sessions/week
+        r"\b(once|twice)\s*(a|per)\s*week\b",               # once per week, twice per week
+
+        # session length
+        r"\b\d+\s*(to|-)\s*\d+\s*min(ute)?s?\b",            # 20-30 min
+        r"\b\d+\s*min(ute)?s?\b",                           # 30 min
+        r"\b\d+\s*(to|-)\s*\d+\s*hours?\b",                 # 1-2 hours
+        r"\b\d+\s*hours?\b",                                # 1 hour
+
+        # program duration
+        r"\b\d+\s*(to|-)\s*\d+\s*weeks?\b",                 # 6-12 weeks
+        r"\b\d+\s*weeks?\b",                                # 8 weeks
+        r"\b\d+\s*(to|-)\s*\d+\s*months?\b",                # 3-6 months
+        r"\b\d+\s*months?\b",                               # 6 months
+
+        # sets/reps
+        r"\b\d+\s*(sets?|set)\b",                           # 3 sets
+        r"\b\d+\s*(reps?|repetitions?)\b",                  # 10 reps
+        r"\b\d+\s*sets?\s*of\s*\d+\s*reps?\b",              # 3 sets of 10 reps
+        r"\b\d+\s*(to|-)\s*\d+\s*reps?\b",                  # 8-12 reps
+
+        # intensity
+        r"\b\d+\s*RM\b",                                    # 10RM
+        r"\b\d+\s*%\s*1RM\b",                               # 70% 1RM
+        r"\bRPE\s*\d+(\.\d+)?\b",                            # RPE 7
+        r"\bBorg\s*\d+(\.\d+)?\b",                           # Borg 13
+
+        # walking / steps (common in rehab)
+        r"\b\d+\s*(to|-)\s*\d+\s*steps?\b",
+        r"\b\d+\s*steps?\b",
+    ]
+
+    hits = []
+    for pat in patterns:
+        for m in re.finditer(pat, t, flags=re.IGNORECASE):
+            hits.append(m.group(0))
+
+    # Deduplicate while preserving order
+    seen = set()
+    out = []
+    for h in hits:
+        key = h.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(h)
+
+    # Limit so it doesn't get noisy
+    return ", ".join(out[:10])
+
 
     # Try labeled sections first
     def grab(label: str) -> str:
@@ -533,7 +597,7 @@ def build_section_card(section_name: str, pmid: str, meta: dict, abstract: str,
     journal = safe(meta.get("source") or meta.get("fulljournalname") or "Journal")
     pubdate = safe(meta.get("pubdate") or "Date not listed")
 
-  summ = structured_summary(abstract, section_name=section_name)
+ summ = structured_summary(abstract, section_name=section_name)
     access = build_access_buttons(pmid, meta)
     prev_list = build_previous_featured_list(prev_pmids, prev_meta_map)
 
@@ -544,7 +608,9 @@ def build_section_card(section_name: str, pmid: str, meta: dict, abstract: str,
       <p class="small">{journal} • {pubdate} • PMID: {safe(pmid)}</p>
 
       <p><strong>Summary:</strong> {safe(summ["summary"])}</p>
-      <p><strong>How to apply:</strong> {safe(summ["apply"])}</p>
+<p><strong>Explain like I’m 5:</strong> {safe(summ["eli5"])}</p>
+<p><strong>How to apply:</strong> {safe(summ["apply"])}</p>
+
 
       <p><strong>Access full article:</strong></p>
       {access}
