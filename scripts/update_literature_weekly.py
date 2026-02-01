@@ -326,8 +326,10 @@ def structured_summary(abstract: str, section_name: str = "") -> dict:
     stats = extract_stats(txt)
     dosage = extract_dosage(txt)
 
-    def extract_dosage(text: str) -> str:
+   def structured_summary(abstract: str, section_name: str = "") -> dict:
     """
+    Output:
+    ...
     Extracts exercise dosage/frequency/time details ONLY if present in the abstract text.
     Returns a short human-readable string or "" if nothing found.
     """
