@@ -4,13 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BSTL Physical Therapy Group</title>
+  <meta name="description" content="BSTL Physical Therapy Group — evidence-informed rehab and a weekly auto-updating research digest (Literature Lane)." />
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
   <div class="container">
 
+    <!-- Top navigation -->
     <div class="nav">
-      <div class="brand">BSTL Physical Therapy Group</div>
+      <div class="brand">BSTL</div>
       <div class="navlinks">
         <a href="index.html">Home</a>
         <a href="team.html">Team</a>
@@ -18,39 +21,59 @@
       </div>
     </div>
 
+    <!-- Hero -->
     <div class="hero">
-      <h1>BSTL</h1>
-      <div class="subtitle">Balls Stuck To Leg — Evidence-Based Physical Therapy</div>
+      <h1>BSTL Physical Therapy Group</h1>
+      <div class="subtitle">Evidence-informed rehab • Clear education • Better movement</div>
+
       <p>
-        BSTL is a group of four physical therapists committed to professional, evidence-based care and practical education.
-        Our focus is helping people move better, recover confidently, and stay active long-term.
+        Welcome to BSTL. We’re a group of physical therapists focused on practical, patient-centered care and continuous learning.
+        Our <strong>Literature Lane</strong> page updates automatically with recent PT-focused research.
       </p>
 
       <div class="buttons">
         <a class="btn primary" href="team.html">Meet the Team</a>
+        <a class="btn" href="literature.html">Explore Literature Lane</a>
       </div>
+
+      <p class="small" style="margin-top:12px;">
+        Sponsored by <strong>Lark the Shark</strong>.
+      </p>
     </div>
 
+    <!-- Content cards -->
     <div class="grid">
+
       <div class="card">
-        <h2>What We Do</h2>
+        <h2>What we focus on</h2>
         <p>
-          Orthopedic rehab, return-to-activity planning, strength & conditioning fundamentals, and patient education—
-          delivered with clarity and a patient-first approach.
+          Orthopedics, sports rehabilitation, geriatrics, and neurological rehabilitation — with an emphasis on
+          safe progression, objective outcomes, and helping people better understand their bodies.
         </p>
+        <ul class="list">
+          <li>Progressive exercise and load management</li>
+          <li>Balance and fall-risk reduction</li>
+          <li>Return-to-sport preparation and testing</li>
+          <li>Neurorehabilitation and gait training principles</li>
+        </ul>
       </div>
 
       <div class="card">
-        <h2>Our Approach</h2>
-        <p>
-          Clear goals, measurable progress, and interventions guided by the best available research—always tailored
-          to the individual in front of us.
+        <h2>Quick links</h2>
+        <p>Browse our team and the latest research updates.</p>
+        <div class="pills">
+          <a class="pill" href="team.html">Team</a>
+          <a class="pill" href="literature.html">Literature Lane</a>
+          <a class="pill" href="https://github.com/lososse15" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+        <p class="small">
+          Tip: If the Literature page looks unchanged right after an update, refresh (or hard refresh) after a minute.
         </p>
       </div>
+
     </div>
 
     <div class="footer">© <span id="year"></span> BSTL Physical Therapy Group</div>
-
   </div>
 
   <script>
